@@ -241,11 +241,17 @@ function LandingInner() {
                           {d.who && <p className="fe-who"><strong>Who may join:</strong> {d.who}</p>}
                         </div>
                         <div className="fe-side">
-                          <div className="fe-fee-label">Registration Fee</div>
-                          <div className="fe-fee">₱{d.fee || '25,000'}</div>
-                          <div className="fe-fee-note">Payable in full or installments</div>
-                          {d.deposit && <div className="fe-dp"><span>Down payment</span><strong>₱{d.deposit}</strong></div>}
-                          {d.balance && <div className="fe-dp"><span>Balance</span><strong>₱{d.balance}</strong></div>}
+                          {d.no_fee ? (
+                            <div className="fe-free-badge">Free to Attend</div>
+                          ) : (
+                            <>
+                              <div className="fe-fee-label">Registration Fee</div>
+                              <div className="fe-fee">₱{d.fee || '25,000'}</div>
+                              <div className="fe-fee-note">Payable in full or installments</div>
+                              {d.deposit && <div className="fe-dp"><span>Down payment</span><strong>₱{d.deposit}</strong></div>}
+                              {d.balance && <div className="fe-dp"><span>Balance</span><strong>₱{d.balance}</strong></div>}
+                            </>
+                          )}
                           <button className="fe-cta" onClick={() => go('contact')}>Register Now</button>
                           {d.deadline && <div className="fe-deadline">Deadline: {d.deadline}</div>}
                         </div>
