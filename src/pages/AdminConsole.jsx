@@ -190,11 +190,27 @@ function EventEditor({ ev, onCancel, onSave }) {
                 <div className="field-row"><label>Registration Deadline</label><input className="portal-field" value={form.details.deadline || ''} onChange={(e) => setD('deadline', e.target.value)} placeholder="7:00 PM · Aug 28, 2026" /></div>
               </div>
               <div className="field-row"><label>Who May Join</label><textarea className="portal-field" rows={2} value={form.details.who || ''} onChange={(e) => setD('who', e.target.value)} /></div>
-              <div className="field-3col">
-                <div className="field-row"><label>Fee (₱)</label><input className="portal-field" value={form.details.fee || ''} onChange={(e) => setD('fee', e.target.value)} placeholder="25,000" /></div>
-                <div className="field-row"><label>Down payment</label><input className="portal-field" value={form.details.deposit || ''} onChange={(e) => setD('deposit', e.target.value)} placeholder="5,000" /></div>
-                <div className="field-row"><label>Balance</label><input className="portal-field" value={form.details.balance || ''} onChange={(e) => setD('balance', e.target.value)} placeholder="20,000" /></div>
+              <div className="field-row" style={{ marginBottom: 8 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', userSelect: 'none' }}>
+                  <input
+                    type="checkbox"
+                    checked={!!form.details.no_fee}
+                    onChange={(e) => {
+                      setD('no_fee', e.target.checked);
+                      if (e.target.checked) { setD('fee', ''); setD('deposit', ''); setD('balance', ''); }
+                    }}
+                    style={{ width: 16, height: 16, accentColor: 'var(--navy)', cursor: 'pointer' }}
+                  />
+                  <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--navy)' }}>This event has no fee (free / not part of curriculum)</span>
+                </label>
               </div>
+              {!form.details.no_fee && (
+                <div className="field-3col">
+                  <div className="field-row"><label>Fee (₱)</label><input className="portal-field" value={form.details.fee || ''} onChange={(e) => setD('fee', e.target.value)} placeholder="25,000" /></div>
+                  <div className="field-row"><label>Down payment</label><input className="portal-field" value={form.details.deposit || ''} onChange={(e) => setD('deposit', e.target.value)} placeholder="5,000" /></div>
+                  <div className="field-row"><label>Balance</label><input className="portal-field" value={form.details.balance || ''} onChange={(e) => setD('balance', e.target.value)} placeholder="20,000" /></div>
+                </div>
+              )}
             </>
           ) : (
             <div className="field-row"><label>Duration (date range)</label><input className="portal-field" value={form.date_range || ''} onChange={(e) => { set('date_range', e.target.value); set('title', e.target.value); }} placeholder="e.g. January 30 – March 20, 2027" /></div>
