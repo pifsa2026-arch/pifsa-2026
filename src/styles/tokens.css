@@ -1,0 +1,40 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@700;800&display=swap');
+
+:root {
+  /* PIFSA brand palette */
+  --navy: #00264d;
+  --navy-2: #002947;
+  --navy-light: #0a3a6b;
+  --gold: #b8860b;
+  --gold-2: #d4a94a;
+  --gold-light: rgba(184,134,11,0.12);
+  --beige: #f2ebdd;
+  --beige-card: #faf7f0;
+  --beige-border: #e5dcc8;
+  --ink: #2a2418;
+  --muted: #6b6152;
+  --line: #e0e0e0;
+  --white: #ffffff;
+
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: 'Playfair Display', Georgia, serif;
+
+  /* Elevation shadows */
+  --shadow-sm: 0 1px 3px rgba(0,38,77,0.08), 0 4px 12px rgba(0,38,77,0.06);
+  --shadow-md: 0 2px 8px rgba(0,38,77,0.10), 0 12px 32px rgba(0,38,77,0.10);
+  --shadow-lg: 0 8px 24px rgba(0,38,77,0.14), 0 24px 56px rgba(0,38,77,0.12);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font-sans);
+  background: var(--white);
+  color: #1a1a1a;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+}
+a { color: inherit; }
+button { font-family: inherit; }
