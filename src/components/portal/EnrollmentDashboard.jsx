@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLeads } from '../../lib/LeadsContext.jsx';
-import { STAGES, TRAINING_DURATIONS, TRAINING_PROGRAMS, isFullyPaid, PROGRAM_PRICE } from '../../lib/config.js';
+import { STAGES, TRAINING_DURATIONS, TRAINING_PROGRAMS, isFullyPaid, leadNetCollected } from '../../lib/config.js';
 import { Donut, MultiLineChart } from './Charts.jsx';
 
 export default function EnrollmentDashboard() {
@@ -121,7 +121,7 @@ export default function EnrollmentDashboard() {
           }
           if (chartMetric === 'revenue') {
             const series = [{ name: 'Revenue', color: 'var(--gold)',
-              values: TRAINING_DURATIONS.map((d) => leads.filter((l) => l.training_duration === d && isFullyPaid(l)).reduce((s, l) => s + (l.programs?.length || 0) * PROGRAM_PRICE, 0)) }];
+              values: TRAINING_DURATIONS.map((d) => leads.filter((l) => l.training_duration === d).reduce((s, l) => s + leadNetCollected(l), 0)) }];
             return <MultiLineChart series={series} labels={durLabels} height={240} money />;
           }
           const series = [{ name: 'Enrollments (Admitted + Paid)', color: 'var(--navy)',

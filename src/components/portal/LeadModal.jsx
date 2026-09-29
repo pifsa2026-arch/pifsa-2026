@@ -23,6 +23,8 @@ export default function LeadModal({ lead, onClose, onSave, onDelete, createMode 
   const [notes, setNotes] = useState([]);
   const [newPay, setNewPay] = useState('');
   const [newPayDate, setNewPayDate] = useState('');
+  const [newRefund, setNewRefund] = useState('');
+  const [newRefundDate, setNewRefundDate] = useState('');
   const [newNote, setNewNote] = useState('');
   const [editingPay, setEditingPay] = useState(null);
   const [editingNote, setEditingNote] = useState(null);
@@ -39,16 +41,20 @@ export default function LeadModal({ lead, onClose, onSave, onDelete, createMode 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const toggleProgram = (p) => set('programs', form.programs.includes(p) ? form.programs.filter((x) => x !== p) : [...form.programs, p]);
 
+  const sumKind = (list, kind) => list.filter((p) => (p.kind || 'payment') === kind).reduce((s, p) => s + Number(p.amount), 0);
   const due = form.programs.length * PROGRAM_PRICE;
-  const paidTotal = payments.reduce((s, p) => s + Number(p.amount), 0);
-  const balance = Math.max(0, due - paidTotal);
-  const fully = due > 0 && paidTotal >= due;
+  const paidTotal = sumKind(payments, 'payment');
+  const refundTotal = sumKind(payments, 'refund');
+  const netPaid = Math.max(0, paidTotal - refundTotal);
+  const balance = Math.max(0, due - netPaid);
+  const fully = due > 0 && netPaid >= due;
 
-  // Recompute the lead's amount_paid whenever payments change, and auto-advance stage
+  // Recompute the lead's totals whenever payment records change, and auto-advance stage
   const recalc = async (newPayments) => {
-    const total = newPayments.reduce((s, p) => s + Number(p.amount), 0);
-    await syncLeadPaidTotal(lead.id, total);
-    if (due > 0 && total >= due && form.stage !== 'Paid') set('stage', 'Paid');
+    const paid = sumKind(newPayments, 'payment');
+    const refunded = sumKind(newPayments, 'refund');
+    await syncLeadPaidTotal(lead.id, paid, refunded);
+    if (due > 0 && paid - refunded >= due && form.stage !== 'Paid') set('stage', 'Paid');
   };
 
   const handleAddPayment = async () => {
@@ -56,6 +62,13 @@ export default function LeadModal({ lead, onClose, onSave, onDelete, createMode 
     if (!amt || amt <= 0) return;
     const row = await addPayment(lead.id, amt, newPayDate ? new Date(newPayDate).toISOString() : null);
     if (row) { const next = [row, ...payments]; setPayments(next); recalc(next); setNewPay(''); setNewPayDate(''); }
+  };
+  const handleAddRefund = async () => {
+    const amt = parseFloat(newRefund);
+    if (!amt || amt <= 0) return;
+    if (amt > netPaid) { alert(`Refund cannot exceed the net amount paid (${peso(netPaid)}).`); return; }
+    const row = await addPayment(lead.id, amt, newRefundDate ? new Date(newRefundDate).toISOString() : null, 'refund');
+    if (row) { const next = [row, ...payments]; setPayments(next); recalc(next); setNewRefund(''); setNewRefundDate(''); }
   };
   const handleEditPayment = async (id, amount) => {
     await updatePayment(id, { amount });
@@ -156,15 +169,22 @@ export default function LeadModal({ lead, onClose, onSave, onDelete, createMode 
             <div className="pay-panel">
               <div className="pay-panel-head">
                 <span>Payment Records</span>
-                {fully ? <span className="pay-tag pay-full">Fully Paid</span> : <span className="pay-tag pay-partial">Balance {peso(balance)}</span>}
+                <span style={{ display: 'flex', gap: 6 }}>
+                  {refundTotal > 0 && <span className="pay-tag pay-refund">Refunded {peso(refundTotal)}</span>}
+                  {fully ? <span className="pay-tag pay-full">Fully Paid</span> : <span className="pay-tag pay-partial">Balance {peso(balance)}</span>}
+                </span>
               </div>
-              <div className="pay-bar"><div className="pay-bar-fill" style={{ width: `${due ? Math.min(100, (paidTotal / due) * 100) : 0}%` }} /></div>
-              <div className="pay-nums"><span>Paid: <strong>{peso(paidTotal)}</strong></span><span>Due: <strong>{peso(due)}</strong></span></div>
+              <div className="pay-bar"><div className="pay-bar-fill" style={{ width: `${due ? Math.min(100, (netPaid / due) * 100) : 0}%` }} /></div>
+              <div className="pay-nums">
+                <span>Paid: <strong>{peso(paidTotal)}</strong></span>
+                {refundTotal > 0 && <span>Refunded: <strong className="neg-text">−{peso(refundTotal)}</strong></span>}
+                <span>Due: <strong>{peso(due)}</strong></span>
+              </div>
 
               <div className="pay-records">
                 {payments.length === 0 && <div className="pay-empty">No payments recorded yet.</div>}
                 {payments.map((p) => (
-                  <div className="pay-record" key={p.id}>
+                  <div className={'pay-record' + (p.kind === 'refund' ? ' is-refund' : '')} key={p.id}>
                     {editingPay === p.id ? (
                       <>
                         <input className="portal-field sm pay-edit-input" type="number" defaultValue={p.amount}
@@ -175,7 +195,7 @@ export default function LeadModal({ lead, onClose, onSave, onDelete, createMode 
                       </>
                     ) : (
                       <>
-                        <span className="pay-rec-amt">{peso(p.amount)}</span>
+                        <span className="pay-rec-amt">{p.kind === 'refund' ? <>−{peso(p.amount)} <span className="pay-tag pay-refund">Refund</span></> : peso(p.amount)}</span>
                         <span className="pay-rec-date">{fmtDateTime(p.paid_on)}</span>
                         <button className="pay-rec-edit" onClick={() => setEditingPay(p.id)}>Edit</button>
                         <button className="pay-rec-del" onClick={() => handleDeletePayment(p.id)}>Delete</button>
@@ -190,7 +210,14 @@ export default function LeadModal({ lead, onClose, onSave, onDelete, createMode 
                 <input className="portal-field" type="date" value={newPayDate} onChange={(e) => setNewPayDate(e.target.value)} />
                 <button className="portal-btn" onClick={handleAddPayment}>Record</button>
               </div>
-              <p className="muted" style={{ fontSize: 12 }}>Total paid is the sum of records. Lead counts as revenue only when fully paid.</p>
+              {netPaid > 0 && (
+                <div className="pay-add">
+                  <input className="portal-field" type="number" placeholder="Refund amount (₱)" value={newRefund} onChange={(e) => setNewRefund(e.target.value)} />
+                  <input className="portal-field" type="date" value={newRefundDate} onChange={(e) => setNewRefundDate(e.target.value)} />
+                  <button className="portal-btn-danger" onClick={handleAddRefund}>Refund</button>
+                </div>
+              )}
+              <p className="muted" style={{ fontSize: 12 }}>Every payment, including down payments, counts as revenue right away. Refunds are subtracted from revenue.</p>
             </div>
           ) : (
             <div className="pay-panel">

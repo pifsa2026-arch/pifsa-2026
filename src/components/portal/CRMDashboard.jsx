@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLeads } from '../../lib/LeadsContext.jsx';
-import { STAGES, TRAINING_DURATIONS, peso, leadTotalDue, isFullyPaid } from '../../lib/config.js';
+import { STAGES, TRAINING_DURATIONS, peso, leadTotalDue, isFullyPaid, leadNetCollected, leadRefunded } from '../../lib/config.js';
 import LeadModal from './LeadModal.jsx';
 
 export default function CRMDashboard({ initialStage = null }) {
@@ -28,7 +28,7 @@ export default function CRMDashboard({ initialStage = null }) {
 
   const matchPay = (l) => {
     if (payFilter === 'all') return true;
-    const due = leadTotalDue(l), paidAmt = Number(l.amount_paid || 0);
+    const due = leadTotalDue(l), paidAmt = leadNetCollected(l);
     if (payFilter === 'paid') return isFullyPaid(l);
     if (payFilter === 'partial') return paidAmt > 0 && paidAmt < due;
     if (payFilter === 'unpaid') return paidAmt === 0;
@@ -55,10 +55,11 @@ export default function CRMDashboard({ initialStage = null }) {
   const onDrop = (stage) => { if (dragId != null) { updateLead(dragId, { stage }); setDragId(null); setDragOver(null); } };
 
   const payTag = (l) => {
-    const due = leadTotalDue(l), paidAmt = Number(l.amount_paid || 0);
-    if (isFullyPaid(l)) return <span className="pay-tag pay-full">Paid</span>;
-    if (paidAmt > 0) return <span className="pay-tag pay-partial">₱{(paidAmt/1000)}k / ₱{(due/1000)}k</span>;
-    return <span className="pay-tag pay-none">Unpaid</span>;
+    const due = leadTotalDue(l), paidAmt = leadNetCollected(l);
+    const refund = leadRefunded(l) > 0 && <span className="pay-tag pay-refund" style={{ marginLeft: 4 }}>Refunded</span>;
+    if (isFullyPaid(l)) return <><span className="pay-tag pay-full">Paid</span>{refund}</>;
+    if (paidAmt > 0) return <><span className="pay-tag pay-partial">₱{(paidAmt/1000)}k / ₱{(due/1000)}k</span>{refund}</>;
+    return <><span className="pay-tag pay-none">Unpaid</span>{refund}</>;
   };
 
   const toggleSelect = (id) => setSelected((s) => s.includes(id) ? s.filter((x) => x !== id) : [...s, id]);

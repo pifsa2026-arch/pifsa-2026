@@ -44,9 +44,13 @@ export const peso = (n) =>
 // Total a lead owes = price × number of programs
 export const leadTotalDue = (lead) => (lead.programs?.length || 0) * PROGRAM_PRICE;
 
-// Is a lead fully paid?
+export const leadRefunded = (lead) => Number(lead.amount_refunded || 0);
+
+// Money actually kept from a lead: every payment (down payments included) minus refunds
+export const leadNetCollected = (lead) => Math.max(0, Number(lead.amount_paid || 0) - leadRefunded(lead));
+
 export const isFullyPaid = (lead) =>
-  leadTotalDue(lead) > 0 && Number(lead.amount_paid || 0) >= leadTotalDue(lead);
+  leadTotalDue(lead) > 0 && leadNetCollected(lead) >= leadTotalDue(lead);
 
 // Requirements for admission (shown in the Process section)
 export const ADMISSION_REQUIREMENTS = [

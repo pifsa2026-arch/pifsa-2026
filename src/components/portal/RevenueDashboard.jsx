@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase.js';
 import { useLeads } from '../../lib/LeadsContext.jsx';
-import { EXPENSE_CATEGORIES, TRAINING_DURATIONS, peso, isFullyPaid, leadTotalDue } from '../../lib/config.js';
+import { EXPENSE_CATEGORIES, TRAINING_DURATIONS, peso, leadNetCollected, leadRefunded } from '../../lib/config.js';
 import { Donut, LineChart, DurationPL } from './Charts.jsx';
 
 const ACADEMY_YEARS = ['2027'];
@@ -21,6 +21,7 @@ export default function RevenueDashboard() {
   const [expenses, setExpenses] = useState([]);
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [year, setYear] = useState('2027');
   const [durFilter, setDurFilter] = useState('all'); // 'all' or a specific duration
   const [form, setForm] = useState({ category: 'Digital', subcategory: 'Paid Ads', description: '', amount: '', spent_on: '', duration: 'General' });
@@ -29,7 +30,7 @@ export default function RevenueDashboard() {
     const load = async () => {
       if (!isSupabaseConfigured) { setExpenses(SAMPLE_EXPENSES); setLoading(false); return; }
       const { data, error } = await supabase.from('expenses').select('*').order('spent_on', { ascending: false });
-      if (error || !data) { setExpenses(SAMPLE_EXPENSES); } else { setExpenses(data); setConnected(true); }
+      if (error) { setExpenses([]); setLoadError(error.message); } else { setExpenses(data || []); setConnected(true); }
       setLoading(false);
     };
     load();
@@ -53,10 +54,13 @@ export default function RevenueDashboard() {
 
   if (loading) return <div className="panel-loading">Loading…</div>;
 
-  // Revenue + expense per duration
+  // Revenue = everything collected (down payments included) minus refunds, per duration
   const revenueByDur = {}; TRAINING_DURATIONS.forEach((d) => (revenueByDur[d] = 0));
-  leads.filter(isFullyPaid).forEach((l) => {
-    if (l.training_duration && revenueByDur[l.training_duration] != null) revenueByDur[l.training_duration] += leadTotalDue(l);
+  const refundByDur = {}; TRAINING_DURATIONS.forEach((d) => (refundByDur[d] = 0));
+  leads.forEach((l) => {
+    if (revenueByDur[l.training_duration] == null) return;
+    revenueByDur[l.training_duration] += leadNetCollected(l);
+    refundByDur[l.training_duration] += leadRefunded(l);
   });
   const expenseByDur = {}; TRAINING_DURATIONS.forEach((d) => (expenseByDur[d] = 0));
   let generalExpense = 0;
@@ -70,15 +74,17 @@ export default function RevenueDashboard() {
   const isAll = durFilter === 'all';
 
   // ---- Scoped figures based on filter ----
-  let revenue, durationExpense, genExpense, net, title;
+  let revenue, refunds, durationExpense, genExpense, net, title;
   if (isAll) {
     revenue = Object.values(revenueByDur).reduce((s, v) => s + v, 0);
+    refunds = Object.values(refundByDur).reduce((s, v) => s + v, 0);
     durationExpense = Object.values(expenseByDur).reduce((s, v) => s + v, 0);
     genExpense = generalExpense;
     net = revenue - durationExpense - genExpense;
     title = `All Durations · AY ${year}`;
   } else {
     revenue = revenueByDur[durFilter] || 0;
+    refunds = refundByDur[durFilter] || 0;
     durationExpense = expenseByDur[durFilter] || 0;
     genExpense = 0; // general only applies to the annual view
     net = revenue - durationExpense;
@@ -100,10 +106,14 @@ export default function RevenueDashboard() {
 
   const scopedExpenses = isAll ? expenses : expenses.filter((e) => (e.duration || 'General') === durFilter);
   const subOptions = EXPENSE_CATEGORIES[form.category] || [];
+  const refundedLeads = leads.filter((l) => leadRefunded(l) > 0 && (isAll || l.training_duration === durFilter));
+  const barMax = Math.max(revenue, durationExpense, Math.abs(net), 1);
+  const barPct = (v) => `${Math.min(100, (Math.abs(v) / barMax) * 100)}%`;
 
   return (
     <div className="rev-dash">
-      {!connected && <div className="notice">Preview mode — expenses are sample/local. Connect Supabase (an <code>expenses</code> table) to persist them.</div>}
+      {!isSupabaseConfigured && <div className="notice">Preview mode — expenses are sample/local. Connect Supabase (an <code>expenses</code> table) to persist them.</div>}
+      {loadError && <div className="notice">Could not load expenses ({loadError}). Make sure the <code>expenses</code> table exists in Supabase.</div>}
 
       {/* Filters */}
       <div className="filter-bar">
@@ -125,7 +135,8 @@ export default function RevenueDashboard() {
 
       {/* KPIs */}
       <div className="kpi-grid kpi-sm">
-        <div className="kpi-card"><div className="kpi-value">{peso(revenue)}</div><div className="kpi-label">Earned Revenue</div></div>
+        <div className="kpi-card"><div className="kpi-value">{peso(revenue)}</div><div className="kpi-label">Collected Revenue</div></div>
+        <div className="kpi-card refund-kpi"><div className="kpi-value neg-text">{peso(refunds)}</div><div className="kpi-label">Refunds</div></div>
         <div className="kpi-card"><div className="kpi-value">{peso(durationExpense)}</div><div className="kpi-label">{isAll ? 'Duration Expenses' : 'Expenses'}</div></div>
         {isAll && <div className="kpi-card"><div className="kpi-value">{peso(genExpense)}</div><div className="kpi-label">General / Annual</div></div>}
         <div className="kpi-card" style={{ borderLeftColor: net >= 0 ? '#27795b' : '#c0392b' }}>
@@ -148,7 +159,7 @@ export default function RevenueDashboard() {
           </div>
           <div className="panel">
             <h3>Profit &amp; Loss per Duration</h3>
-            <p className="muted mini">Net = fully-paid revenue − expenses tagged to that duration. General expenses hit the annual net only.</p>
+            <p className="muted mini">Net = collected revenue (down payments included, refunds removed) − expenses tagged to that duration. General expenses hit the annual net only.</p>
             <DurationPL rows={plRows} />
           </div>
         </>
@@ -156,12 +167,37 @@ export default function RevenueDashboard() {
         <div className="panel">
           <h3>{title} — Breakdown</h3>
           <div className="single-breakdown">
-            <div className="sb-item"><span className="sb-tag rev">Revenue</span><div className="sb-track"><div className="sb-fill rev" style={{ width: revenue ? '100%' : '0' }} /></div><span className="sb-val">{peso(revenue)}</span></div>
-            <div className="sb-item"><span className="sb-tag exp">Expenses</span><div className="sb-track"><div className="sb-fill exp" style={{ width: revenue ? `${Math.min(100, (durationExpense / Math.max(revenue, durationExpense)) * 100)}%` : '100%' }} /></div><span className="sb-val">{peso(durationExpense)}</span></div>
-            <div className="sb-item"><span className="sb-tag net">Net</span><div className="sb-track"><div className={'sb-fill ' + (net >= 0 ? 'net' : 'neg')} style={{ width: `${Math.min(100, (Math.abs(net) / Math.max(revenue, durationExpense, 1)) * 100)}%` }} /></div><span className={'sb-val ' + (net < 0 ? 'neg-text' : '')}>{peso(net)}</span></div>
+            <div className="sb-item"><span className="sb-tag rev">Revenue</span><div className="sb-track"><div className="sb-fill rev" style={{ width: barPct(revenue) }} /></div><span className="sb-val">{peso(revenue)}</span></div>
+            <div className="sb-item"><span className="sb-tag exp">Expenses</span><div className="sb-track"><div className="sb-fill exp" style={{ width: barPct(durationExpense) }} /></div><span className="sb-val">{peso(durationExpense)}</span></div>
+            <div className="sb-item"><span className="sb-tag net">Net</span><div className="sb-track"><div className={'sb-fill ' + (net >= 0 ? 'net' : 'neg')} style={{ width: barPct(net) }} /></div><span className={'sb-val ' + (net < 0 ? 'neg-text' : '')}>{peso(net)}</span></div>
           </div>
         </div>
       )}
+
+      <div className="panel">
+        <h3>Refunds {!isAll && <span className="muted mini">· {title}</span>}</h3>
+        <p className="muted mini" style={{ marginBottom: 16 }}>Leads with refunds recorded. Refunded amounts are already removed from revenue.</p>
+        {refundedLeads.length === 0 ? (
+          <div className="chart-empty" style={{ height: 80 }}>No refunds recorded</div>
+        ) : (
+          <div className="table-wrap">
+            <table className="crm-table sm">
+              <thead><tr><th>Lead</th><th>Duration</th><th>Paid</th><th>Refunded</th><th>Net Kept</th></tr></thead>
+              <tbody>
+                {refundedLeads.map((l) => (
+                  <tr key={l.id}>
+                    <td><div style={{ fontWeight: 600 }}>{l.full_name}</div><div className="cell-sub">{(l.programs || []).join(', ')}</div></td>
+                    <td><span className="dur-tag">{l.training_duration ? shortDur(l.training_duration) : '—'}</span></td>
+                    <td>{peso(l.amount_paid)}</td>
+                    <td><span className="pay-tag pay-refund">−{peso(leadRefunded(l))}</span></td>
+                    <td>{peso(leadNetCollected(l))}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
       {/* Top Expense Contributors by source */}
       <div className="panel">

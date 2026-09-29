@@ -133,7 +133,7 @@ function LandingInner() {
             <h3>Our Mission</h3>
             <p>PIFSA is committed to providing specialized, competency-based training and Continuing Professional Development (CPD) programs in investigation, law enforcement, public safety and security, corrections and rehabilitation, legal studies, and forensic sciences — enhancing professional competence, advancing knowledge, and promoting excellence in the criminal justice system.</p>
             <h3>Accreditations</h3>
-            <p>SEC-registered (CS201706492), PRC CPD-accredited provider (CRM-2017-007), and PhilHealth-registered (001000054519), recognized across the Philippine criminal justice and law enforcement community.</p>
+            <p>SEC-registered (CS201706492) and a PRC CPD-accredited provider (CRM-2017-007), recognized across the Philippine criminal justice and law enforcement community.</p>
           </div>
           <div className="about-right">
             <div className="about-photo">
@@ -472,7 +472,6 @@ function LandingInner() {
               <li><span>Business</span>Specialty Training Institution</li>
               <li><span>SEC Reg.</span>CS201706492</li>
               <li><span>PRC CPD</span>CRM-2017-007</li>
-              <li><span>PhilHealth</span>001000054519</li>
             </ul>
           </div>
 

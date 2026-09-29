@@ -12,7 +12,7 @@ export function useCompass(stepCount) {
     const update = () => {
       const rect = wrap.getBoundingClientRect();
       const total = wrap.offsetHeight - window.innerHeight;
-      const progress = Math.max(0, Math.min(1, (-rect.top) / total));
+      const progress = total > 0 ? Math.max(0, Math.min(1, (-rect.top) / total)) : 0;
       const idx = Math.min(stepCount - 1, Math.floor(progress * stepCount));
       setActive(idx);
     };

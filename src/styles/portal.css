@@ -612,6 +612,10 @@
 .pay-tag { font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 100px; text-transform: uppercase; letter-spacing: 0.3px; }
 .pay-full  { background: #d4f0e3; color: #1a7048; }
 .pay-partial { background: #fef3d6; color: #956a00; }
+.pay-refund { background: #fde8e8; color: #9e2828; }
+.pay-record.is-refund { background: #fff6f6; }
+.neg-text { color: #b83232; }
+.refund-kpi { border-left-color: #b83232 !important; }
 .pay-none  { background: #fde8e8; color: #9e2828; }
 .stage-pill { font-size: 11px; font-weight: 600; background: var(--beige); color: var(--navy); padding: 4px 12px; border-radius: 100px; }
 

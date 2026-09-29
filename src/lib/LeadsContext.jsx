@@ -95,25 +95,29 @@ export function LeadsProvider({ children }) {
     return data || [];
   }, [connected]);
 
-  const syncLeadPaidTotal = useCallback(async (leadId, total) => {
+  const syncLeadPaidTotal = useCallback(async (leadId, total, refunded = 0) => {
+    const patch = { amount_paid: total, amount_refunded: refunded };
     setLeads((ls) => {
       const prev = ls.find((l) => l.id === leadId);
-      const updated = prev ? { ...prev, amount_paid: total } : null;
-      if (updated) {
+      if (prev && total > Number(prev.amount_paid || 0)) {
+        const updated = { ...prev, ...patch };
         fireAutomationEvent('payment_received', updated);
-        if (leadTotalDue(updated) > 0 && total >= leadTotalDue(updated)) {
-          fireAutomationEvent('fully_paid', updated);
-        }
+        const due = leadTotalDue(updated);
+        const prevNet = Number(prev.amount_paid || 0) - Number(prev.amount_refunded || 0);
+        if (due > 0 && prevNet < due && total - refunded >= due) fireAutomationEvent('fully_paid', updated);
       }
-      return ls.map((l) => (l.id === leadId ? { ...l, amount_paid: total } : l));
+      return ls.map((l) => (l.id === leadId ? { ...l, ...patch } : l));
     });
-    if (isSupabaseConfigured && connected) await supabase.from('leads').update({ amount_paid: total }).eq('id', leadId);
+    if (isSupabaseConfigured && connected) {
+      const { error } = await supabase.from('leads').update(patch).eq('id', leadId);
+      if (error) alert('Could not update payment totals: ' + error.message);
+    }
   }, [connected]);
 
-  const addPayment = useCallback(async (leadId, amount, paidOn) => {
+  const addPayment = useCallback(async (leadId, amount, paidOn, kind = 'payment') => {
     if (!isSupabaseConfigured || !connected) return null;
-    const { data, error } = await supabase.from('payments').insert([{ lead_id: leadId, amount, paid_on: paidOn || new Date().toISOString() }]).select();
-    if (error) { alert('Could not add payment: ' + error.message); return null; }
+    const { data, error } = await supabase.from('payments').insert([{ lead_id: leadId, amount, kind, paid_on: paidOn || new Date().toISOString() }]).select();
+    if (error) { alert(`Could not add ${kind}: ` + error.message); return null; }
     return data ? data[0] : null;
   }, [connected]);
 
