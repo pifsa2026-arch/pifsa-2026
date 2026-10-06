@@ -119,10 +119,9 @@ export const HERO_PILLS = [
 ];
 
 export const ABOUT_STATS = [
-  { target: 500, suffix: '+', label: 'Trained Professionals' },
-  { target: 8, suffix: '', label: 'Specialized Courses' },
-  { target: 15, suffix: '+', label: 'Years in Service' },
-  { target: 95, suffix: '%', label: 'Graduate Satisfaction' },
+  { target: 9, suffix: '', label: 'Years in the industry', note: 'Training investigators and forensic specialists' },
+  { target: 1000, suffix: '+', label: 'Training completers', note: 'Professionals who finished a PIFSA program' },
+  { target: 10, suffix: '', label: 'Specialized courses', note: 'Professional certificate programs offered' },
 ];
 
 export const TEAM_STATS = [

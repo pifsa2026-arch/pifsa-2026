@@ -15,9 +15,8 @@ export function useCountUp(target, suffix = '', duration = 1600) {
       const tick = (now) => {
         const p = Math.min(1, (now - start) / duration);
         const eased = 1 - Math.pow(1 - p, 3);
-        setText(Math.round(eased * target) + suffix);
+        setText(Math.round(eased * target).toLocaleString('en-US') + suffix);
         if (p < 1) requestAnimationFrame(tick);
-        else setText(target + suffix);
       };
       requestAnimationFrame(tick);
     };

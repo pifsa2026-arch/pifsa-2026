@@ -62,6 +62,17 @@ function LandingInner() {
     return () => { document.body.style.overflow = ''; };
   }, [menuOpen]);
 
+  // Fade sections in as they scroll into view
+  useEffect(() => {
+    const els = document.querySelectorAll('.reveal:not(.in)');
+    if (!('IntersectionObserver' in window)) { els.forEach((el) => el.classList.add('in')); return; }
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('in'); obs.unobserve(e.target); } });
+    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+    els.forEach((el) => obs.observe(el));
+    return () => obs.disconnect();
+  }, [displayDurations.length]);
+
   const step = PROCESS_STEPS[active];
   const half = Math.ceil(GALLERY.length / 2);
   const row1 = GALLERY.slice(0, half);
@@ -124,42 +135,66 @@ function LandingInner() {
         <div className="scroll-indicator">Scroll to explore</div>
       </div>
 
+      {/* Stats band */}
+      <div className="stats-band">
+        <div className="stats-band-inner">
+          {ABOUT_STATS.map((s) => (
+            <div className="sband-item reveal" key={s.label}>
+              <StatNumber className="sband-num" target={s.target} suffix={s.suffix} />
+              <div className="sband-label">{s.label}</div>
+              <p className="sband-note">{s.note}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* About */}
       <section id="about">
         <img src="/images/logo.png" alt="" className="about-watermark" aria-hidden="true" />
-        <div className="section-header">
-          <h2 className="section-title">About PIFSA</h2>
-          <p className="section-subtitle">The Philippine Investigation and Forensic Science Academy is the leading institution for professional development in investigative sciences.</p>
-        </div>
         <div className="about-grid">
-          <div>
-            <h3>Our Vision</h3>
-            <p>PIFSA envisions becoming a leading private training institution in investigation and forensic sciences — producing highly competent, ethical, and professional investigators and forensic specialists who contribute to truth, justice, public safety, and a responsive, resilient society.</p>
-            <h3>Our Mission</h3>
-            <p>PIFSA is committed to providing specialized, competency-based training and Continuing Professional Development (CPD) programs in investigation, law enforcement, public safety and security, corrections and rehabilitation, legal studies, and forensic sciences — enhancing professional competence, advancing knowledge, and promoting excellence in the criminal justice system.</p>
-            <h3>Accreditations</h3>
-            <p>SEC-registered (CS201706492) and a PRC CPD-accredited provider (CRM-2017-007), recognized across the Philippine criminal justice and law enforcement community.</p>
-          </div>
-          <div className="about-right">
-            <div className="about-photo">
-              <img src="/images/gallery-1.jpg" alt="PIFSA training seminar with participants and faculty" loading="lazy" />
+          <div className="about-media reveal">
+            <div className="about-photo main"><img src="/images/gallery-1.jpg" alt="PIFSA training seminar with participants and faculty" loading="lazy" /></div>
+            <div className="about-photo inset"><img src="/images/gallery-2.jpg" alt="Forensic Psychology graduates at a PIFSA closing ceremony" loading="lazy" /></div>
+            <div className="about-seal">
+              <img src="/images/logo.png" alt="" aria-hidden="true" />
+              <div><strong>PRC CPD</strong><span>Accredited Provider</span></div>
             </div>
-            <div className="stat-grid">
-              {ABOUT_STATS.map((s) => (
-                <div className="stat-card" key={s.label}>
-                  <StatNumber className="stat-number count-num" target={s.target} suffix={s.suffix} />
-                  <div className="stat-label">{s.label}</div>
+          </div>
+          <div className="about-copy">
+            <div className="eyebrow reveal"><span className="eyebrow-dot"></span>About PIFSA</div>
+            <h2 className="section-title reveal">The academy for investigators and <span className="accent">forensic specialists</span></h2>
+            <p className="section-subtitle reveal">The Philippine Investigation and Forensic Science Academy is the leading institution for professional development in investigative sciences.</p>
+            <div className="vm-cards">
+              <div className="vm-card reveal">
+                <div className="vm-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></div>
+                <div>
+                  <h3>Our Vision</h3>
+                  <p>PIFSA envisions becoming a leading private training institution in investigation and forensic sciences — producing highly competent, ethical, and professional investigators and forensic specialists who contribute to truth, justice, public safety, and a responsive, resilient society.</p>
                 </div>
-              ))}
+              </div>
+              <div className="vm-card reveal">
+                <div className="vm-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg></div>
+                <div>
+                  <h3>Our Mission</h3>
+                  <p>PIFSA is committed to providing specialized, competency-based training and Continuing Professional Development (CPD) programs in investigation, law enforcement, public safety and security, corrections and rehabilitation, legal studies, and forensic sciences — enhancing professional competence, advancing knowledge, and promoting excellence in the criminal justice system.</p>
+                </div>
+              </div>
+            </div>
+            <div className="accred-row reveal">
+              <div className="accred"><span>SEC Registered</span><strong>CS201706492</strong></div>
+              <div className="accred"><span>PRC CPD Accredited Provider</span><strong>CRM-2017-007</strong></div>
             </div>
           </div>
         </div>
+      </section>
 
-        {/* Core Values */}
-        <div className="core-values">
+      {/* Core Values */}
+      <div className="values-band">
+        <div className="values-inner">
           <div className="cv-head">
-            <h3>Our Core Values</h3>
-            <p>The PIFSA Core Values form the acronym <strong>P.I.F.S.A.</strong> — where every letter represents a pillar of the Academy's training foundation.</p>
+            <div className="eyebrow light reveal"><span className="eyebrow-dot"></span>Our Core Values</div>
+            <h2 className="reveal">Five letters. <span className="accent">One standard.</span></h2>
+            <p className="reveal">The PIFSA Core Values form the acronym <strong>P.I.F.S.A.</strong> — where every letter represents a pillar of the Academy’s training foundation.</p>
           </div>
           <div className="cv-grid">
             {[
@@ -168,18 +203,16 @@ function LandingInner() {
               { l: 'F', t: 'Fairness', d: 'We demonstrate impartiality — free from self-interest, prejudice, or favoritism.' },
               { l: 'S', t: 'Service', d: 'Prompt responses, consistent communication, and a superior client experience. Service to others is our reason for existence.' },
               { l: 'A', t: 'Academic Excellence', d: 'We embrace continuous learning and growth, enabling talented people to realize their full potential.' },
-            ].map((v) => (
-              <div className="cv-card" key={v.l}>
+            ].map((v, i) => (
+              <div className="cv-card reveal" style={{ '--d': i }} key={v.l}>
                 <div className="cv-letter">{v.l}</div>
-                <div className="cv-body">
-                  <h4>{v.t}</h4>
-                  <p>{v.d}</p>
-                </div>
+                <h4>{v.t}</h4>
+                <p>{v.d}</p>
               </div>
             ))}
           </div>
         </div>
-      </section>
+      </div>
       <section id="calendar" className="team-section">
         <div className="team-inner">
           <div className="section-header">
@@ -190,27 +223,31 @@ function LandingInner() {
 
           <div className="calendar-grid">
             <div className="cal-col">
-              <h3 className="cal-col-title">Training Duration</h3>
+              <h3 className="cal-col-title">Training Durations <span>{displayDurations.length}</span></h3>
               <div className="cal-durations">
                 {displayDurations.map((d, i) => (
-                  <div className="cal-duration" key={d.id || i}>
-                    <div className="cal-badge">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>
+                  <div className="cal-duration reveal" key={d.id || i}>
+                    <div className="cal-badge">{String(i + 1).padStart(2, '0')}</div>
+                    <div>
+                      <div className="cal-duration-kicker">Duration {i + 1}</div>
+                      <div className="cal-duration-text">{d.date_range || d.title}</div>
                     </div>
-                    <div className="cal-duration-text">{d.date_range || d.title}</div>
                   </div>
                 ))}
               </div>
             </div>
             <div className="cal-col">
-              <h3 className="cal-col-title">Training Programs</h3>
+              <h3 className="cal-col-title">Professional Certificate Programs <span>{TRAINING_PROGRAMS.length}</span></h3>
               <div className="cal-programs">
-                {TRAINING_PROGRAMS.map((p) => (
-                  <div className="cal-program" key={p}>
-                    <span className="cal-dot" />
-                    {p}
-                  </div>
-                ))}
+                {TRAINING_PROGRAMS.map((p) => {
+                  const m = p.match(/^(?:Professional Certificate in )?(.*?)\s*\(([^)]+)\)$/);
+                  return (
+                    <div className="cal-program reveal" key={p}>
+                      <span className="cal-code">{m ? m[2] : '•'}</span>
+                      <span>{m ? m[1] : p}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -286,12 +323,14 @@ function LandingInner() {
       {/* Courses */}
       <section id="courses">
         <div className="section-header">
-          <h2 className="section-title">Courses Offered</h2>
+          <div className="eyebrow reveal"><span className="eyebrow-dot"></span>Courses Offered</div>
+          <h2 className="section-title reveal">{COURSES.length} programs, one <span className="accent">pursuit of truth</span></h2>
           <p className="section-subtitle">Comprehensive programs designed to develop investigative expertise across multiple disciplines.</p>
         </div>
         <div className="courses-container">
-          {COURSES.map((c) => (
-            <div className="course-service" key={c.title}>
+          {COURSES.map((c, ci) => (
+            <div className="course-service" style={{ '--n': ci }} key={c.title}>
+              <div className="course-index" aria-hidden="true">{String(ci + 1).padStart(2, '0')}</div>
               <div className="course-icon" dangerouslySetInnerHTML={{ __html: c.icon }} />
               <div className="course-main">
                 <div className="course-code">{c.code}</div>
@@ -299,8 +338,9 @@ function LandingInner() {
                 <p>{c.desc}</p>
               </div>
               <div className="course-items">
-                {c.items.map((it, i) => (
-                  <div className="course-item" key={it}><span className="number">{String(i + 1).padStart(2, '0')}</span>{it}</div>
+                <div className="course-items-label">What you will cover</div>
+                {c.items.map((it) => (
+                  <div className="course-item" key={it}>{it}</div>
                 ))}
               </div>
             </div>
@@ -334,6 +374,7 @@ function LandingInner() {
       {/* Process (compass) */}
       <section id="process" className="process-section">
         <div className="section-header">
+          <div className="eyebrow"><span className="eyebrow-dot"></span>How it works</div>
           <h2 className="section-title">Delivering results in <span className="accent">four moves</span></h2>
           <p className="section-subtitle">From first contact to certification, our process is built to develop real investigative capability.</p>
         </div>
