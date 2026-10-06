@@ -1,13 +1,20 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase.js';
 import { TRAINING_PROGRAMS, TRAINING_DURATIONS } from '../lib/config.js';
 
 const EMPTY = { full_name: '', email: '', contact_number: '', program: '', training_duration: '' };
 
-export default function EnrollForm() {
+export default function EnrollForm({ picked }) {
   const [form, setForm] = useState(EMPTY);
   const [status, setStatus] = useState('idle');
   const [message, setMessage] = useState('');
+
+  // A course card's "Enroll" link pre-selects its program
+  useEffect(() => {
+    if (!picked) return;
+    setForm((f) => ({ ...f, program: picked.program }));
+    setStatus((st) => (st === 'success' ? 'idle' : st));
+  }, [picked]);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 

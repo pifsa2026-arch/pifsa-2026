@@ -5,12 +5,10 @@ import { COURSES, PROCESS_STEPS, GALLERY, HERO_PILLS, ABOUT_STATS } from './land
 import { TRAINING_DURATIONS, TRAINING_PROGRAMS, ADMISSION_REQUIREMENTS, HOW_TO_JOIN } from '../lib/config.js';
 import { EventsProvider, useEvents } from '../lib/EventsContext.jsx';
 import StatNumber from '../components/StatNumber.jsx';
-import { useCompass } from '../components/useCompass.js';
 import EnrollForm from '../components/EnrollForm.jsx';
 import VerifyCertificate from '../components/VerifyCertificate.jsx';
 
 const NAV = ['about', 'calendar', 'courses', 'gallery', 'process', 'contact'];
-const CIRC = 2820;
 
 export default function Landing() {
   return (
@@ -25,7 +23,8 @@ function LandingInner() {
   const [verifyOpen, setVerifyOpen] = useState(false);
   const navigate = useNavigate();
   const { displayDurations, displayFeatured } = useEvents();
-  const { wrapRef, active, goToStep } = useCompass(PROCESS_STEPS.length);
+  const [active, setActive] = useState(0);
+  const [picked, setPicked] = useState(null);
   const [slide, setSlide] = useState(0);
   const slideshowRef = useRef(null);
 
@@ -74,6 +73,19 @@ function LandingInner() {
   }, [displayDurations.length]);
 
   const step = PROCESS_STEPS[active];
+
+  // Soft glow that follows the cursor across a course card
+  const spotlight = (e) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    e.currentTarget.style.setProperty('--mx', (e.clientX - r.left) + 'px');
+    e.currentTarget.style.setProperty('--my', (e.clientY - r.top) + 'px');
+  };
+
+  const enrollIn = (code) => {
+    const program = TRAINING_PROGRAMS.find((p) => p.includes('(' + code + ')'));
+    if (program) setPicked({ program, at: Date.now() });
+    go('contact');
+  };
   const half = Math.ceil(GALLERY.length / 2);
   const row1 = GALLERY.slice(0, half);
   const row2 = GALLERY.slice(half);
@@ -322,28 +334,31 @@ function LandingInner() {
 
       {/* Courses */}
       <section id="courses">
-        <div className="section-header">
-          <div className="eyebrow reveal"><span className="eyebrow-dot"></span>Courses Offered</div>
-          <h2 className="section-title reveal">{COURSES.length} programs, one <span className="accent">pursuit of truth</span></h2>
-          <p className="section-subtitle">Comprehensive programs designed to develop investigative expertise across multiple disciplines.</p>
+        <div className="section-header split">
+          <div>
+            <div className="eyebrow reveal"><span className="eyebrow-dot"></span>Courses Offered</div>
+            <h2 className="section-title reveal">{COURSES.length} programs, one <span className="accent">pursuit of truth</span></h2>
+          </div>
+          <p className="section-subtitle reveal">Comprehensive programs designed to develop investigative expertise across multiple disciplines.</p>
         </div>
-        <div className="courses-container">
+        <div className="course-grid">
           {COURSES.map((c, ci) => (
-            <div className="course-service" style={{ '--n': ci }} key={c.title}>
-              <div className="course-index" aria-hidden="true">{String(ci + 1).padStart(2, '0')}</div>
-              <div className="course-icon" dangerouslySetInnerHTML={{ __html: c.icon }} />
-              <div className="course-main">
-                <div className="course-code">{c.code}</div>
-                <h3>{c.title}</h3>
-                <p>{c.desc}</p>
+            <article className="course-card reveal" key={c.title} onMouseMove={spotlight}>
+              <div className="course-card-top">
+                <div className="course-icon" dangerouslySetInnerHTML={{ __html: c.icon }} />
+                <span className="course-num" aria-hidden="true">{String(ci + 1).padStart(2, '0')}</span>
               </div>
-              <div className="course-items">
-                <div className="course-items-label">What you will cover</div>
-                {c.items.map((it) => (
-                  <div className="course-item" key={it}>{it}</div>
-                ))}
+              <div className="course-meta">
+                <span className="course-code">{c.code}</span>
+                <span className="course-kicker">Professional Certificate in</span>
               </div>
-            </div>
+              <h3>{c.title.replace('Professional Certificate in ', '')}</h3>
+              <p>{c.desc}</p>
+              <div className="course-chips">
+                {c.items.map((it) => <span key={it}>{it}</span>)}
+              </div>
+              <button className="course-enroll" onClick={() => enrollIn(c.code)}>Enroll in this program <span aria-hidden="true">→</span></button>
+            </article>
           ))}
         </div>
       </section>
@@ -371,74 +386,50 @@ function LandingInner() {
         </div>
       </div>
 
-      {/* Process (compass) */}
+      {/* Process */}
       <section id="process" className="process-section">
-        <div className="section-header">
-          <div className="eyebrow"><span className="eyebrow-dot"></span>How it works</div>
-          <h2 className="section-title">Delivering results in <span className="accent">four moves</span></h2>
-          <p className="section-subtitle">From first contact to certification, our process is built to develop real investigative capability.</p>
-        </div>
-        <div className="compass-wrap" ref={wrapRef}>
-          <div className="compass-sticky">
-            <img src="/images/justice.png" alt="" className="process-watermark" aria-hidden="true" />
-            <div className="compass-progress">
-              <div className="cprog-bar"><div className="cprog-fill" style={{ width: `${(active + 1) / PROCESS_STEPS.length * 100}%` }} /></div>
-              <div className="cprog-label"><span>{String(active + 1).padStart(2, '0')}</span> / 04</div>
+        <div className="process-inner">
+          <div className="section-header split">
+            <div>
+              <div className="eyebrow reveal"><span className="eyebrow-dot"></span>How it works</div>
+              <h2 className="section-title reveal">Delivering results in <span className="accent">four moves</span></h2>
             </div>
-            <div className="compass-stage">
-              <div className="compass-dial" style={{ transform: `rotate(${-active * 30}deg)` }}>
-                <svg className="compass-arc" viewBox="0 0 900 900">
-                  <circle className="carc-track" cx="450" cy="450" r="449" />
-                  <circle className="carc-fill" cx="450" cy="450" r="449"
-                    style={{ strokeDashoffset: CIRC - (CIRC * (active + 1) / PROCESS_STEPS.length * 0.25) - (CIRC * 0.75) }} />
-                </svg>
-                {PROCESS_STEPS.map((s, i) => (
-                  <div className={'compass-step' + (i === active ? ' active' : '')} style={{ '--i': i }} key={i}>
-                    <div className="cstep-dot"><span>{i + 1}</span></div>
-                  </div>
-                ))}
-              </div>
-              <div className="compass-center">
-                <div className="compass-icon" dangerouslySetInnerHTML={{ __html: step.icon }} />
-                <div className="compass-label">Step</div>
-                <div className="compass-num">{active + 1}</div>
-                <div className="compass-content">
-                  <div className="compass-tag">{step.tag}</div>
-                  <h3>{step.t}</h3>
-                  <p>{step.d}</p>
-                </div>
-              </div>
-            </div>
-            <div className="compass-nav">
+            <p className="section-subtitle reveal">From first contact to certification, our process is built to develop real investigative capability.</p>
+          </div>
+
+          <div className="steps reveal">
+            <div className="steps-list" role="tablist" aria-label="Our process">
               {PROCESS_STEPS.map((s, i) => (
-                <button key={i} className={'cnav-item' + (i === active ? ' active' : '')} onClick={() => goToStep(i)}>
-                  <span className="cnav-n">{String(i + 1).padStart(2, '0')}</span>
-                  <span className="cnav-t">{s.t}</span>
+                <button
+                  key={s.t} role="tab" aria-selected={i === active}
+                  className={'steps-tab' + (i === active ? ' active' : '') + (i < active ? ' done' : '')}
+                  onClick={() => setActive(i)}
+                >
+                  <span className="steps-tab-num">{String(i + 1).padStart(2, '0')}</span>
+                  <span className="steps-tab-text"><small>{s.tag}</small>{s.t}</span>
+                  <span className="steps-tab-bar"><i onAnimationEnd={() => setActive((a) => (a + 1) % PROCESS_STEPS.length)} /></span>
                 </button>
               ))}
             </div>
-          </div>
-        </div>
-        <div className="process-mobile">
-          {PROCESS_STEPS.map((s, i) => (
-            <div className="pm-step" key={i}>
-              <div className="pm-num">{i + 1}</div>
-              <div>
-                <div className="pm-tag">{s.tag}</div>
-                <h3>{s.t}</h3>
-                <p>{s.d}</p>
+            <div className="steps-panel" key={active} role="tabpanel">
+              <div className="steps-panel-num" aria-hidden="true">{String(active + 1).padStart(2, '0')}</div>
+              <div className="steps-panel-icon" dangerouslySetInnerHTML={{ __html: step.icon }} />
+              <div className="steps-panel-tag">Step {active + 1} of {PROCESS_STEPS.length} · {step.tag}</div>
+              <h3>{step.t}</h3>
+              <p>{step.d}</p>
+              <div className="steps-panel-nav">
+                <button onClick={() => setActive((active - 1 + PROCESS_STEPS.length) % PROCESS_STEPS.length)} aria-label="Previous step">←</button>
+                <button onClick={() => setActive((active + 1) % PROCESS_STEPS.length)} aria-label="Next step">→</button>
               </div>
             </div>
-          ))}
-        </div>
+          </div>
 
-        {/* Requirements & How to Join */}
-        <div className="req-block">
+          {/* Requirements & How to Join */}
           <div className="req-grid">
-            <div className="req-card">
+            <div className="req-card reveal">
               <div className="req-head">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-                <h3>Requirements for Admission</h3>
+                <div className="req-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
+                <div><span>Before you apply</span><h3>Requirements for Admission</h3></div>
               </div>
               <ul className="req-list">
                 {ADMISSION_REQUIREMENTS.map((r, i) => (
@@ -446,43 +437,57 @@ function LandingInner() {
                 ))}
               </ul>
             </div>
-            <div className="req-card req-card-dark">
+            <div className="req-card req-card-dark reveal">
               <div className="req-head">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
-                <h3>How to Join</h3>
+                <div className="req-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg></div>
+                <div><span>After you enroll</span><h3>How to Join</h3></div>
               </div>
-              <ul className="req-list req-list-check">
+              <ol className="join-steps">
                 {HOW_TO_JOIN.map((r, i) => (
-                  <li key={i}><span className="req-check">✓</span>{r}</li>
+                  <li key={i}><span className="join-dot">{i + 1}</span><p>{r}</p></li>
                 ))}
-              </ul>
+              </ol>
+              <button className="req-cta" onClick={() => go('contact')}>Start your application →</button>
             </div>
           </div>
         </div>
       </section>
 
       {/* Contact */}
-      <section id="contact" style={{ padding: 0 }}>
-        <div className="contact-wrapper">
-          <div className="contact-inner">
-            <h2>Get Started</h2>
-            <p>Ready to advance your career? Fill out the form below and we will guide you through the next steps.</p>
-            <EnrollForm />
-            <div className="contact-info">
-              <p>Mobile: 0977 277 8345 · 0921 282 5233</p>
-              <p>Email: pifsa2017@gmail.com · pifsa2021@gmail.com</p>
-              <p>Address: 2nd Floor BS Square Commercial Inc., Doña Soledad Ave. cor. West Service Road, Parañaque City</p>
+      <section id="contact" className="contact-section">
+        <div className="contact-glow" aria-hidden="true" />
+        <div className="contact-wrap">
+          <div className="contact-copy">
+            <div className="eyebrow light reveal"><span className="eyebrow-dot"></span>Get Started</div>
+            <h2 className="reveal">Ready to advance <span className="accent">your career?</span></h2>
+            <p className="contact-lead reveal">Fill out the form and we will guide you through the next steps.</p>
+            <div className="contact-methods">
+              <a className="contact-method reveal" href="tel:+639772778345">
+                <span className="cm-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg></span>
+                <span><small>Call or text</small>0977 277 8345 · 0921 282 5233</span>
+              </a>
+              <a className="contact-method reveal" href="mailto:pifsa2017@gmail.com">
+                <span className="cm-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></svg></span>
+                <span><small>Email</small>pifsa2017@gmail.com · pifsa2021@gmail.com</span>
+              </a>
+              <div className="contact-method reveal">
+                <span className="cm-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z"/><circle cx="12" cy="10" r="3"/></svg></span>
+                <span><small>Visit</small>2nd Floor BS Square Commercial Inc., Doña Soledad Ave. cor. West Service Road, Parañaque City</span>
+              </div>
             </div>
+            <blockquote className="contact-motto reveal">Learn to probe and be a purveyor of truth.</blockquote>
           </div>
-          <div className="contact-quote">
-            <div className="cq-mark">&ldquo;</div>
-            <blockquote className="cq-text">Learn to probe and be a purveyor of truth.</blockquote>
-            <p className="cq-sub">The guiding principle behind every PIFSA program — training investigators who pursue facts with integrity, precision, and purpose.</p>
-            <div className="cq-divider"></div>
-            <div className="cq-points">
-              <div className="cq-point"><span className="cq-check">&#10003;</span>Practitioner-led, hands-on training</div>
-              <div className="cq-point"><span className="cq-check">&#10003;</span>Government-accredited certifications</div>
-              <div className="cq-point"><span className="cq-check">&#10003;</span>A nationwide network of professionals</div>
+
+          <div className="contact-card reveal">
+            <div className="contact-card-head">
+              <h3>Application form</h3>
+              <p>Tell us which program and schedule you want.</p>
+            </div>
+            <EnrollForm picked={picked} />
+            <div className="contact-points">
+              <span>Practitioner-led, hands-on training</span>
+              <span>Government-accredited certifications</span>
+              <span>A nationwide network of professionals</span>
             </div>
           </div>
         </div>
