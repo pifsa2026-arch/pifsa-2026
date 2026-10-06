@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { useLeads } from '../../lib/LeadsContext.jsx';
-import { STAGES, TRAINING_DURATIONS, TRAINING_PROGRAMS, isFullyPaid, leadNetCollected } from '../../lib/config.js';
+import { STAGES, ACADEMY_YEARS, DEFAULT_ACADEMY_YEAR, durationsForYear, academyYearLabel, shortDuration, TRAINING_PROGRAMS, isFullyPaid, leadNetCollected } from '../../lib/config.js';
 import { Donut, MultiLineChart } from './Charts.jsx';
 
 export default function EnrollmentDashboard() {
   const { leads: allLeads, loading, connected } = useLeads();
-  const [year, setYear] = useState('2027');
+  const [year, setYear] = useState(DEFAULT_ACADEMY_YEAR);
   const [durFilter, setDurFilter] = useState('all');
   const [chartMetric, setChartMetric] = useState('enrollment'); // enrollment | revenue | stages
   if (loading) return <div className="panel-loading">Loading…</div>;
@@ -13,7 +13,7 @@ export default function EnrollmentDashboard() {
   // Filter by academic year (via training duration containing the year) + specific duration
   const leads = allLeads.filter((l) => {
     if (durFilter !== 'all') return l.training_duration === durFilter;
-    if (year && l.training_duration) return l.training_duration.includes(year);
+    if (year && l.training_duration) return durationsForYear(year).includes(l.training_duration);
     return true;
   });
 
@@ -33,7 +33,7 @@ export default function EnrollmentDashboard() {
   const stageMax = Math.max(1, ...stageCounts.map((s) => s.n));
 
   // Enrollment per training duration (count leads at Admitted/Paid)
-  const perDuration = TRAINING_DURATIONS.map((d) => ({
+  const perDuration = durationsForYear(year).map((d) => ({
     d,
     n: leads.filter((l) => l.training_duration === d && (l.stage === 'Admitted' || l.stage === 'Paid')).length,
   }));
@@ -53,17 +53,17 @@ export default function EnrollmentDashboard() {
         <div className="filter-group">
           <label>Academic Year</label>
           <select className="portal-field sm" value={year} onChange={(e) => { setYear(e.target.value); setDurFilter('all'); }}>
-            <option value="2027">AY 2027</option>
+            {ACADEMY_YEARS.map((y) => <option key={y.id} value={y.id}>{y.label}</option>)}
           </select>
         </div>
         <div className="filter-group">
           <label>Training Duration</label>
           <select className="portal-field sm" value={durFilter} onChange={(e) => setDurFilter(e.target.value)}>
             <option value="all">All durations</option>
-            {TRAINING_DURATIONS.map((d) => <option key={d} value={d}>{d}</option>)}
+            {durationsForYear(year).map((d) => <option key={d} value={d}>{d}</option>)}
           </select>
         </div>
-        <div className="filter-scope">{durFilter === 'all' ? `All Durations · AY ${year}` : durFilter.replace(', 2027', '').replace(' – ', '–')}</div>
+        <div className="filter-scope">{durFilter === 'all' ? `All Durations · ${academyYearLabel(year)}` : shortDuration(durFilter)}</div>
       </div>
 
       <div className="kpi-grid">
@@ -110,22 +110,22 @@ export default function EnrollmentDashboard() {
           </div>
         </div>
         {(() => {
-          const durLabels = TRAINING_DURATIONS.map((d) => d.replace(', 2027', '').split(' – ')[0].replace(/ \d+$/, ''));
+          const durLabels = durationsForYear(year).map((d) => shortDuration(d).split('–')[0].replace(/ \d+$/, ''));
           if (chartMetric === 'stages') {
             const stageColors = { Leads: '#5b8def', Applicants: '#b8860b', Examinees: '#7a5c1b', 'For Requirements': '#c98a2b', Admitted: '#27795b', Paid: '#1b7a52' };
             const series = STAGES.map((st) => ({
               name: st, color: stageColors[st],
-              values: TRAINING_DURATIONS.map((d) => leads.filter((l) => l.training_duration === d && l.stage === st).length),
+              values: durationsForYear(year).map((d) => leads.filter((l) => l.training_duration === d && l.stage === st).length),
             }));
             return <MultiLineChart series={series} labels={durLabels} height={280} />;
           }
           if (chartMetric === 'revenue') {
             const series = [{ name: 'Revenue', color: 'var(--gold)',
-              values: TRAINING_DURATIONS.map((d) => leads.filter((l) => l.training_duration === d).reduce((s, l) => s + leadNetCollected(l), 0)) }];
+              values: durationsForYear(year).map((d) => leads.filter((l) => l.training_duration === d).reduce((s, l) => s + leadNetCollected(l), 0)) }];
             return <MultiLineChart series={series} labels={durLabels} height={240} money />;
           }
           const series = [{ name: 'Enrollments (Admitted + Paid)', color: 'var(--navy)',
-            values: TRAINING_DURATIONS.map((d) => leads.filter((l) => l.training_duration === d && (l.stage === 'Admitted' || l.stage === 'Paid')).length) }];
+            values: durationsForYear(year).map((d) => leads.filter((l) => l.training_duration === d && (l.stage === 'Admitted' || l.stage === 'Paid')).length) }];
           return <MultiLineChart series={series} labels={durLabels} height={240} />;
         })()}
       </div>

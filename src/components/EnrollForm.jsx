@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase.js';
-import { TRAINING_PROGRAMS, TRAINING_DURATIONS } from '../lib/config.js';
+import { TRAINING_PROGRAMS, programsForDuration, durationsForProgram, durationNote } from '../lib/config.js';
 
 const EMPTY = { full_name: '', email: '', contact_number: '', program: '', training_duration: '' };
 
@@ -12,9 +12,13 @@ export default function EnrollForm({ picked }) {
   // A course card's "Enroll" link pre-selects its program
   useEffect(() => {
     if (!picked) return;
-    setForm((f) => ({ ...f, program: picked.program }));
+    setForm((f) => ({ ...f, program: picked.program, training_duration: programsForDuration(f.training_duration).includes(picked.program) ? f.training_duration : '' }));
     setStatus((st) => (st === 'success' ? 'idle' : st));
   }, [picked]);
+
+  // Some durations are open to certain programs only, so each list narrows to match the other
+  const programOptions = form.training_duration ? programsForDuration(form.training_duration) : TRAINING_PROGRAMS;
+  const durationOptions = durationsForProgram(form.program);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
@@ -76,12 +80,12 @@ export default function EnrollForm({ picked }) {
 
       <select className="form-field" value={form.program} onChange={set('program')}>
         <option value="">Select a training program</option>
-        {TRAINING_PROGRAMS.map((p) => <option key={p} value={p}>{p}</option>)}
+        {programOptions.map((p) => <option key={p} value={p}>{p}</option>)}
       </select>
 
       <select className="form-field" value={form.training_duration} onChange={set('training_duration')}>
         <option value="">Select a training duration</option>
-        {TRAINING_DURATIONS.map((d) => <option key={d} value={d}>{d}</option>)}
+        {durationOptions.map((d) => <option key={d} value={d}>{d}{durationNote(d)}</option>)}
       </select>
 
       <p className="form-hint">One program per application. To enroll in another program, submit a separate application after this one.</p>

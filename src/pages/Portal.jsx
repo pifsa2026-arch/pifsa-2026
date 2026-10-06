@@ -6,7 +6,7 @@ import EnrollmentDashboard from '../components/portal/EnrollmentDashboard.jsx';
 import RevenueDashboard from '../components/portal/RevenueDashboard.jsx';
 import CRMDashboard from '../components/portal/CRMDashboard.jsx';
 import AutomationDashboard from '../components/portal/AutomationDashboard.jsx';import { LeadsProvider, useLeads } from '../lib/LeadsContext.jsx';
-import { STAGES, TRAINING_DURATIONS, isFullyPaid } from '../lib/config.js';
+import { STAGES, ACADEMY_YEARS, DEFAULT_ACADEMY_YEAR, durationsForYear, academyYearLabel, shortDuration, isFullyPaid } from '../lib/config.js';
 
 const TABS = [
   { id: 'enrollment', label: 'Enrollment', icon: '\uD83D\uDCCA' },
@@ -19,7 +19,7 @@ const STAGE_COLORS = { Leads: '#5b8def', Applicants: '#b8860b', Examinees: '#7a5
 function PortalInner() {
   const [tab, setTab] = useState('enrollment');
   const [navOpen, setNavOpen] = useState(false);
-  const [ovYear, setOvYear] = useState('2027');
+  const ovYear = DEFAULT_ACADEMY_YEAR;
   const [ovDur, setOvDur] = useState('all');
   const [crmStageFilter, setCrmStageFilter] = useState(null);
   const { user, signOut } = useAuth();
@@ -30,7 +30,7 @@ function PortalInner() {
 
   const ovLeads = leads.filter((l) => {
     if (ovDur !== 'all') return l.training_duration === ovDur;
-    if (ovYear && l.training_duration) return l.training_duration.includes(ovYear);
+    if (ovYear && l.training_duration) return durationsForYear(ovYear).includes(l.training_duration);
     return true;
   });
   const stageCounts = STAGES.reduce((a, s) => { a[s] = ovLeads.filter((l) => l.stage === s).length; return a; }, {});
@@ -76,8 +76,12 @@ function PortalInner() {
           <div className="side-section-label">Overview</div>
           <div className="overview-box">
             <select className="ov-filter" value={ovDur} onChange={(e) => setOvDur(e.target.value)}>
-              <option value="all">All durations · {ovYear}</option>
-              {TRAINING_DURATIONS.map((d) => <option key={d} value={d}>{d.replace(', 2027', '').replace(' – ', '–')}</option>)}
+              <option value="all">All durations · {academyYearLabel(ovYear)}</option>
+              {ACADEMY_YEARS.map((y) => (
+                <optgroup key={y.id} label={y.label}>
+                  {y.durations.map((d) => <option key={d} value={d}>{shortDuration(d)}</option>)}
+                </optgroup>
+              ))}
             </select>
             <div className="ov-row"><span>Total leads</span><strong>{totalLeads}</strong></div>
             <div className="ov-row"><span>Fully paid</span><strong className="ov-paid">{fullyPaid}</strong></div>

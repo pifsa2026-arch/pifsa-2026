@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useLeads } from '../../lib/LeadsContext.jsx';
-import { STAGES, TRAINING_DURATIONS, peso, leadTotalDue, isFullyPaid, leadNetCollected, leadRefunded } from '../../lib/config.js';
+import { STAGES, ACADEMY_YEARS, DEFAULT_ACADEMY_YEAR, durationsForYear, academyYearLabel, shortDuration, peso, leadTotalDue, isFullyPaid, leadNetCollected, leadRefunded } from '../../lib/config.js';
 import LeadModal from './LeadModal.jsx';
 
 export default function CRMDashboard({ initialStage = null }) {
@@ -11,7 +11,7 @@ export default function CRMDashboard({ initialStage = null }) {
   const [openLead, setOpenLead] = useState(null);
   const [creating, setCreating] = useState(false);
   const [payFilter, setPayFilter] = useState('all');
-  const [year, setYear] = useState('2027');
+  const [year, setYear] = useState(DEFAULT_ACADEMY_YEAR);
   const [durFilter, setDurFilter] = useState('all');
   const [stageFilter, setStageFilter] = useState(initialStage);
   const [search, setSearch] = useState('');
@@ -42,7 +42,7 @@ export default function CRMDashboard({ initialStage = null }) {
   };
   const matchYearDur = (l) => {
     if (durFilter !== 'all') return l.training_duration === durFilter;
-    if (year && l.training_duration) return l.training_duration.includes(year);
+    if (year && l.training_duration) return durationsForYear(year).includes(l.training_duration);
     return true;
   };
   const baseLeads = leads.filter(matchPay).filter(matchSearch).filter(matchYearDur);
@@ -97,17 +97,17 @@ export default function CRMDashboard({ initialStage = null }) {
         <div className="filter-group">
           <label>Academic Year</label>
           <select className="portal-field sm" value={year} onChange={(e) => { setYear(e.target.value); setDurFilter('all'); }}>
-            <option value="2027">AY 2027</option>
+            {ACADEMY_YEARS.map((y) => <option key={y.id} value={y.id}>{y.label}</option>)}
           </select>
         </div>
         <div className="filter-group">
           <label>Training Duration</label>
           <select className="portal-field sm" value={durFilter} onChange={(e) => setDurFilter(e.target.value)}>
             <option value="all">All durations</option>
-            {TRAINING_DURATIONS.map((d) => <option key={d} value={d}>{d}</option>)}
+            {durationsForYear(year).map((d) => <option key={d} value={d}>{d}</option>)}
           </select>
         </div>
-        <div className="filter-scope">{durFilter === 'all' ? `All Durations · AY ${year}` : durFilter.replace(', 2027', '').replace(' – ', '–')}</div>
+        <div className="filter-scope">{durFilter === 'all' ? `All Durations · ${academyYearLabel(year)}` : shortDuration(durFilter)}</div>
       </div>
 
       <div className="crm-toolbar">

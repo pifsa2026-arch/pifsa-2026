@@ -1,11 +1,11 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase, isSupabaseConfigured } from './supabase.js';
-import { TRAINING_DURATIONS } from './config.js';
+import { durationsForYear, DEFAULT_ACADEMY_YEAR } from './config.js';
 
 const EventsContext = createContext(null);
 
 // Fallback content (used if Supabase has no events yet, so the landing page never looks empty).
-export const FALLBACK_DURATIONS = TRAINING_DURATIONS.map((d, i) => ({
+export const FALLBACK_DURATIONS = durationsForYear(DEFAULT_ACADEMY_YEAR).map((d, i) => ({
   id: `fallback-dur-${i}`, kind: 'duration', title: d, date_range: d, featured: false, details: {}, sort_order: i,
 }));
 

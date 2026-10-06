@@ -1,20 +1,20 @@
 import { useEffect, useState } from 'react';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase.js';
 import { useLeads } from '../../lib/LeadsContext.jsx';
-import { EXPENSE_CATEGORIES, TRAINING_DURATIONS, peso, leadNetCollected, leadRefunded } from '../../lib/config.js';
+import { EXPENSE_CATEGORIES, TRAINING_DURATIONS, ACADEMY_YEARS, DEFAULT_ACADEMY_YEAR, durationsForYear, academyYearLabel, shortDuration, peso, leadNetCollected, leadRefunded } from '../../lib/config.js';
 import { Donut, LineChart, DurationPL } from './Charts.jsx';
 
-const ACADEMY_YEARS = ['2027'];
+const Y27 = durationsForYear(DEFAULT_ACADEMY_YEAR);
 
 const SAMPLE_EXPENSES = [
-  { id: 1, spent_on: '2027-01-10', category: 'Digital', subcategory: 'Paid Ads', description: 'Meta ads', amount: 30000, duration: TRAINING_DURATIONS[0] },
-  { id: 2, spent_on: '2027-01-15', category: 'Events', subcategory: 'Training Events', description: 'Guest speakers', amount: 45000, duration: TRAINING_DURATIONS[0] },
-  { id: 3, spent_on: '2027-01-20', category: 'Operations', subcategory: 'Utilities', description: 'Venue + power', amount: 18000, duration: TRAINING_DURATIONS[1] },
+  { id: 1, spent_on: '2027-01-10', category: 'Digital', subcategory: 'Paid Ads', description: 'Meta ads', amount: 30000, duration: Y27[0] },
+  { id: 2, spent_on: '2027-01-15', category: 'Events', subcategory: 'Training Events', description: 'Guest speakers', amount: 45000, duration: Y27[0] },
+  { id: 3, spent_on: '2027-01-20', category: 'Operations', subcategory: 'Utilities', description: 'Venue + power', amount: 18000, duration: Y27[1] },
   { id: 4, spent_on: '2027-02-01', category: 'Operations', subcategory: 'Employee Salary', description: 'Staff (annual)', amount: 60000, duration: 'General' },
-  { id: 5, spent_on: '2027-01-22', category: 'Print', subcategory: 'Flyers', description: 'Enrollment flyers', amount: 8000, duration: TRAINING_DURATIONS[0] },
+  { id: 5, spent_on: '2027-01-22', category: 'Print', subcategory: 'Flyers', description: 'Enrollment flyers', amount: 8000, duration: Y27[0] },
 ];
 
-const shortDur = (d) => (d === 'General' ? 'General' : d.replace(', 2027', '').replace(' – ', '–'));
+const shortDur = (d) => (d === 'General' ? 'General' : shortDuration(d));
 
 export default function RevenueDashboard() {
   const { leads } = useLeads();
@@ -22,7 +22,7 @@ export default function RevenueDashboard() {
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
-  const [year, setYear] = useState('2027');
+  const [year, setYear] = useState(DEFAULT_ACADEMY_YEAR);
   const [durFilter, setDurFilter] = useState('all'); // 'all' or a specific duration
   const [form, setForm] = useState({ category: 'Digital', subcategory: 'Paid Ads', description: '', amount: '', spent_on: '', duration: 'General' });
 
@@ -54,21 +54,23 @@ export default function RevenueDashboard() {
 
   if (loading) return <div className="panel-loading">Loading…</div>;
 
+  const yearDurations = durationsForYear(year);
+
   // Revenue = everything collected (down payments included) minus refunds, per duration
-  const revenueByDur = {}; TRAINING_DURATIONS.forEach((d) => (revenueByDur[d] = 0));
-  const refundByDur = {}; TRAINING_DURATIONS.forEach((d) => (refundByDur[d] = 0));
+  const revenueByDur = {}; yearDurations.forEach((d) => (revenueByDur[d] = 0));
+  const refundByDur = {}; yearDurations.forEach((d) => (refundByDur[d] = 0));
   leads.forEach((l) => {
     if (revenueByDur[l.training_duration] == null) return;
     revenueByDur[l.training_duration] += leadNetCollected(l);
     refundByDur[l.training_duration] += leadRefunded(l);
   });
-  const expenseByDur = {}; TRAINING_DURATIONS.forEach((d) => (expenseByDur[d] = 0));
+  const expenseByDur = {}; yearDurations.forEach((d) => (expenseByDur[d] = 0));
   let generalExpense = 0;
   expenses.forEach((e) => {
     const d = e.duration || 'General';
     if (d === 'General') generalExpense += Number(e.amount);
     else if (expenseByDur[d] != null) expenseByDur[d] += Number(e.amount);
-    else generalExpense += Number(e.amount);
+    else if (!TRAINING_DURATIONS.includes(d)) generalExpense += Number(e.amount);
   });
 
   const isAll = durFilter === 'all';
@@ -81,7 +83,7 @@ export default function RevenueDashboard() {
     durationExpense = Object.values(expenseByDur).reduce((s, v) => s + v, 0);
     genExpense = generalExpense;
     net = revenue - durationExpense - genExpense;
-    title = `All Durations · AY ${year}`;
+    title = `All Durations · ${academyYearLabel(year)}`;
   } else {
     revenue = revenueByDur[durFilter] || 0;
     refunds = refundByDur[durFilter] || 0;
@@ -92,9 +94,9 @@ export default function RevenueDashboard() {
   }
 
   const durColors = ['#00264d', '#1b4f7a', '#b8860b', '#d4a94a', '#27795b', '#7a5c1b'];
-  const linePoints = TRAINING_DURATIONS.map((d) => ({ label: shortDur(d).split('–')[0], value: revenueByDur[d] }));
-  const donutData = TRAINING_DURATIONS.map((d, i) => ({ label: shortDur(d), value: revenueByDur[d], color: durColors[i], isMoney: true })).filter((x) => x.value > 0);
-  const plRows = TRAINING_DURATIONS.map((d) => ({ label: shortDur(d), revenue: revenueByDur[d], expense: expenseByDur[d], net: revenueByDur[d] - expenseByDur[d] }));
+  const linePoints = yearDurations.map((d) => ({ label: shortDur(d).split('–')[0], value: revenueByDur[d] }));
+  const donutData = yearDurations.map((d, i) => ({ label: shortDur(d), value: revenueByDur[d], color: durColors[i], isMoney: true })).filter((x) => x.value > 0);
+  const plRows = yearDurations.map((d) => ({ label: shortDur(d), revenue: revenueByDur[d], expense: expenseByDur[d], net: revenueByDur[d] - expenseByDur[d] }));
 
   // Top expense contributors by primary source (Digital/Events/Print/Operations)
   const scopedForSources = isAll ? expenses : expenses.filter((e) => (e.duration || 'General') === durFilter);
@@ -119,15 +121,15 @@ export default function RevenueDashboard() {
       <div className="filter-bar">
         <div className="filter-group">
           <label>Academy Year</label>
-          <select className="portal-field sm" value={year} onChange={(e) => setYear(e.target.value)}>
-            {ACADEMY_YEARS.map((y) => <option key={y} value={y}>AY {y}</option>)}
+          <select className="portal-field sm" value={year} onChange={(e) => { setYear(e.target.value); setDurFilter('all'); }}>
+            {ACADEMY_YEARS.map((y) => <option key={y.id} value={y.id}>{y.label}</option>)}
           </select>
         </div>
         <div className="filter-group">
           <label>Training Duration</label>
           <select className="portal-field sm" value={durFilter} onChange={(e) => setDurFilter(e.target.value)}>
             <option value="all">All durations</option>
-            {TRAINING_DURATIONS.map((d) => <option key={d} value={d}>{d}</option>)}
+            {yearDurations.map((d) => <option key={d} value={d}>{d}</option>)}
           </select>
         </div>
         <div className="filter-scope">{title}</div>

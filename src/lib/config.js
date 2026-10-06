@@ -2,15 +2,35 @@
 
 export const PROGRAM_PRICE = 25000; // ₱ per training program
 
-// 2027 Calendar of Professional Certificate Programs — training durations
-export const TRAINING_DURATIONS = [
-  'January 30 – March 20, 2027',
-  'March 13 – May 1, 2027',
-  'May 15 – July 3, 2027',
-  'July 17 – September 4, 2027',
-  'September 18 – November 6, 2027',
-  'October 23 – December 11, 2027',
+// Training durations, grouped by academy year
+export const ACADEMY_YEARS = [
+  { id: '26-27', label: 'AY 26–27', durations: ['August 29 – October 17, 2026'] },
+  {
+    id: '2027', label: 'AY 2027',
+    durations: [
+      'January 30 – March 20, 2027',
+      'March 13 – May 1, 2027',
+      'May 15 – July 3, 2027',
+      'July 17 – September 4, 2027',
+      'September 18 – November 6, 2027',
+      'October 23 – December 11, 2027',
+    ],
+  },
 ];
+export const DEFAULT_ACADEMY_YEAR = '2027';
+export const TRAINING_DURATIONS = ACADEMY_YEARS.flatMap((y) => y.durations);
+export const durationsForYear = (id) => ACADEMY_YEARS.find((y) => y.id === id)?.durations || [];
+export const academyYearLabel = (id) => ACADEMY_YEARS.find((y) => y.id === id)?.label || id;
+export const shortDuration = (d) => d.replace(/, 20\d\d$/, '').replace(' – ', '–');
+
+// Durations that are open to specific programs only (all others accept every program)
+const DURATION_PROGRAMS = {
+  'August 29 – October 17, 2026': ['Professional Certificate in Forensic Psychology (PCFPsy)'],
+};
+export const programsForDuration = (d) => DURATION_PROGRAMS[d] || TRAINING_PROGRAMS;
+export const durationsForProgram = (p) => TRAINING_DURATIONS.filter((d) => !p || programsForDuration(d).includes(p));
+export const durationNote = (d) =>
+  DURATION_PROGRAMS[d] ? ` (${DURATION_PROGRAMS[d].map((p) => p.replace('Professional Certificate in ', '').replace(/\s*\(.*\)$/, '')).join(', ')} only)` : '';
 
 // Training programs offered
 export const TRAINING_PROGRAMS = [
