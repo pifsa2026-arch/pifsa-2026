@@ -425,6 +425,10 @@ function LandingInner() {
           </div>
 
           {/* Requirements & How to Join */}
+          <div className="req-intro reveal">
+            <div className="eyebrow"><span className="eyebrow-dot"></span>Admission</div>
+            <h3>What you need, and what happens next</h3>
+          </div>
           <div className="req-grid">
             <div className="req-card reveal">
               <div className="req-head">
