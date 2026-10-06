@@ -613,6 +613,13 @@
 .pay-full  { background: #d4f0e3; color: #1a7048; }
 .pay-partial { background: #fef3d6; color: #956a00; }
 .pay-refund { background: #fde8e8; color: #9e2828; }
+.cert-code { background: #eef1f6; color: var(--navy); padding: 3px 8px; border-radius: 6px; font-size: 12px; font-weight: 700; }
+.completer-date { display: flex; flex-direction: column; gap: 5px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); }
+.csv-ok { color: #1a7048; background: #e3f5ec; border-radius: 9px; padding: 9px 12px; font-size: 13px; }
+.csv-review { margin-top: 14px; display: flex; flex-direction: column; gap: 12px; font-size: 13.5px; color: var(--navy); background: #f7f9fc; border: 1px solid #e4eaf2; border-radius: 12px; padding: 16px; }
+.csv-problems { margin: 0; padding-left: 18px; font-size: 12.5px; color: #956a00; max-height: 160px; overflow-y: auto; line-height: 1.7; }
+a.portal-btn-ghost { text-decoration: none; display: inline-flex; align-items: center; }
+.completer-error { color: #9e2828; background: #fde8e8; border-radius: 9px; padding: 9px 12px; font-size: 13px; }
 .pay-record.is-refund { background: #fff6f6; }
 .neg-text { color: #b83232; }
 .refund-kpi { border-left-color: #b83232 !important; }

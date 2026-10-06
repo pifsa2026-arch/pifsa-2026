@@ -6,6 +6,7 @@ import EnrollmentDashboard from '../components/portal/EnrollmentDashboard.jsx';
 import RevenueDashboard from '../components/portal/RevenueDashboard.jsx';
 import CRMDashboard from '../components/portal/CRMDashboard.jsx';
 import AutomationDashboard from '../components/portal/AutomationDashboard.jsx';
+import CompletersDashboard from '../components/portal/CompletersDashboard.jsx';
 import { LeadsProvider, useLeads } from '../lib/LeadsContext.jsx';
 import { STAGES, TRAINING_DURATIONS, isFullyPaid } from '../lib/config.js';
 
@@ -14,6 +15,7 @@ const TABS = [
   { id: 'revenue', label: 'Revenue', icon: '\uD83D\uDCB0' },
   { id: 'crm', label: 'CRM', icon: '\uD83D\uDC65' },
   { id: 'automation', label: 'Automation', icon: '\u26A1' },
+  { id: 'completers', label: 'Completers', icon: '\uD83C\uDF93' },
 ];
 
 const STAGE_COLORS = { Leads: '#5b8def', Applicants: '#b8860b', Examinees: '#7a5c1b', 'For Requirements': '#c98a2b', Admitted: '#27795b', Paid: '#1b7a52' };
@@ -107,6 +109,7 @@ function PortalInner() {
           {tab === 'revenue' && <RevenueDashboard />}
           {tab === 'crm' && <CRMDashboard initialStage={crmStageFilter} onStageConsumed={() => {}} />}
           {tab === 'automation' && <AutomationDashboard />}
+          {tab === 'completers' && <CompletersDashboard />}
         </div>
       </div>
       {navOpen && <div className="portal-backdrop" onClick={() => setNavOpen(false)} />}
