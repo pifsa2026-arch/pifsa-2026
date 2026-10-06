@@ -585,6 +585,35 @@ section { padding: 100px 40px; max-width: 1200px; margin: 0 auto; }
   .fe-arrow-left { left: 8px; } .fe-arrow-right { right: 8px; }
 }
 
+/* Event details always fit the card: the fee + button stay pinned, long text trims or scrolls */
+.fe-slide .fe-body { min-height: 0; }
+.fe-slide .featured-event:not(.has-image) .fe-body { flex: 1; }
+.fe-slide .fe-main { min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.3) transparent; }
+.fe-slide .fe-desc { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; }
+.fe-slide .fe-who { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+.featured-event.has-image .fe-body { height: 100%; }
+.featured-event.has-image .fe-main { padding: 30px 30px 16px; }
+.featured-event.has-image .fe-main h3 { max-width: 100%; }
+.featured-event.has-image .fe-desc { margin-bottom: 18px; }
+.featured-event.has-image .fe-meta { gap: 12px 16px; margin-bottom: 14px; }
+.featured-event.has-image .fe-side { flex: 0 0 auto; padding: 18px 30px 24px; justify-content: flex-start; }
+.featured-event.has-image .fe-fee { font-size: 32px; }
+.featured-event.has-image .fe-fee-note { margin-bottom: 10px; }
+.featured-event.has-image .fe-cta { margin-top: 14px; }
+.featured-event.has-image .fe-badge { left: 20px; right: auto; }
+
+@media (max-width: 860px) {
+  /* No hover on phones: show the flyer on top and the details underneath, at natural height */
+  .fe-slide .featured-event { height: auto; }
+  .featured-event.has-image { flex-direction: column; padding-top: 62%; background-size: 100% auto !important; background-position: top center; background-color: #001a36; }
+  .featured-event.has-image .fe-img-overlay { display: none; }
+  .featured-event.has-image .fe-body { width: 100%; height: auto; opacity: 1; transform: none; background: #001a36; }
+  .featured-event.has-image .fe-badge { opacity: 1; }
+  .fe-slide .fe-main { overflow: visible; }
+  .fe-slide .fe-desc, .fe-slide .fe-who { -webkit-line-clamp: unset; display: block; }
+  .fe-arrow { top: calc(12px + 27vw); }
+}
+
 /* ============ SECTION REFRESH ============ */
 .reveal { transition: opacity 0.7s cubic-bezier(0.2,0.7,0.2,1), transform 0.7s cubic-bezier(0.2,0.7,0.2,1), border-color 0.3s, background 0.3s, box-shadow 0.3s; transition-delay: calc(var(--d, 0) * 80ms); }
 .reveal:not(.in) { opacity: 0; transform: translateY(22px); }
