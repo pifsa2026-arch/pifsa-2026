@@ -1,6 +1,8 @@
 export const CSV_TEMPLATE =
-  'certificate_no,full_name,program,batch,completed_on\n' +
-  'PIFSA-2025-FP-0001,Juan Dela Cruz,Forensic Psychology,Batch 12,2025-11-08\n';
+  'certificate_no,full_name,program,batch,training_duration,completed_on\n' +
+  'PIFSA-2025-FP-0001,Juan Dela Cruz,Forensic Psychology,Batch 12,"August 29 – October 17, 2025",2025-11-08\n';
+
+const DURATION_ALIASES = ['trainingduration', 'duration', 'schedule'];
 
 const ALIASES = {
   certificate_no: ['certificateno', 'certificatenumber', 'certificate', 'certno', 'trainingcertificatenumber', 'trainingcertificateno'],
@@ -60,6 +62,8 @@ export function readCompletersCsv(text, existingCertNos) {
   const missing = Object.keys(col).filter((f) => col[f] === -1);
   if (missing.length) return { fatal: `Missing column${missing.length > 1 ? 's' : ''}: ${missing.join(', ')}. Use the template so the headers match.` };
 
+  const durationCol = header.findIndex((h) => DURATION_ALIASES.includes(h));
+
   const seen = new Set(existingCertNos.map((c) => c.trim().toUpperCase()));
   const rows = [], problems = [];
   table.slice(1).forEach((cells, i) => {
@@ -73,7 +77,8 @@ export function readCompletersCsv(text, existingCertNos) {
     const key = row.certificate_no.toUpperCase();
     if (seen.has(key)) { problems.push({ line, reason: `certificate number ${row.certificate_no} is already used` }); return; }
     seen.add(key);
-    rows.push({ ...row, completed_on: date });
+    const training_duration = durationCol === -1 ? null : (cells[durationCol] || '').trim() || null;
+    rows.push({ ...row, completed_on: date, training_duration });
   });
   return { rows, problems };
 }

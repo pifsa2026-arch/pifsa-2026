@@ -12,7 +12,7 @@ export default function Workspace() {
 
   return (
     <div className="workspace">
-      <div className="workspace-inner">
+      <div className="workspace-inner three">
         <div className="workspace-brand">
           <img src="/images/logo.png" alt="PIFSA" />
           <div>
@@ -40,6 +40,13 @@ export default function Workspace() {
             {checked && !isAdmin
               ? <span className="ws-card-locked">🔒 Admin access required</span>
               : <span className="ws-card-go">Open Console →</span>}
+          </div>
+
+          <div className="ws-card" role="button" tabIndex={0} onClick={() => navigate('/completers')}>
+            <div className="ws-card-icon ws-completers">🎓</div>
+            <h3>Completers Database</h3>
+            <p>Record completers by batch and manage the certificate numbers used for public verification.</p>
+            <span className="ws-card-go">Open Database →</span>
           </div>
         </div>
 

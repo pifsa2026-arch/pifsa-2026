@@ -56,7 +56,10 @@ export default function CRMDashboard({ initialStage = null }) {
 
   const payTag = (l) => {
     const due = leadTotalDue(l), paidAmt = leadNetCollected(l);
-    const refund = leadRefunded(l) > 0 && <span className="pay-tag pay-refund" style={{ marginLeft: 4 }}>Refunded</span>;
+    const refund = <>
+      {leadRefunded(l) > 0 && <span className="pay-tag pay-refund" style={{ marginLeft: 4 }}>Refunded</span>}
+      {l.is_completer && <span className="pay-tag pay-completer" style={{ marginLeft: 4 }}>Completer</span>}
+    </>;
     if (isFullyPaid(l)) return <><span className="pay-tag pay-full">Paid</span>{refund}</>;
     if (paidAmt > 0) return <><span className="pay-tag pay-partial">₱{(paidAmt/1000)}k / ₱{(due/1000)}k</span>{refund}</>;
     return <><span className="pay-tag pay-none">Unpaid</span>{refund}</>;

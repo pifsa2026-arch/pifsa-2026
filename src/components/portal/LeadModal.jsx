@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { STAGES, TRAINING_PROGRAMS, TRAINING_DURATIONS, PROGRAM_PRICE, LEAD_SOURCES, peso } from '../../lib/config.js';
 import { useLeads } from '../../lib/LeadsContext.jsx';
+import { supabase } from '../../lib/supabase.js';
 
 const fmtDateTime = (iso) => {
   const d = new Date(iso);
@@ -9,7 +10,7 @@ const fmtDateTime = (iso) => {
 
 export default function LeadModal({ lead, onClose, onSave, onDelete, createMode = false }) {
   const { fetchPayments, addPayment, updatePayment, deletePayment, syncLeadPaidTotal,
-    fetchNotes, addNote, updateNote, deleteNote, connected } = useLeads();
+    fetchNotes, addNote, updateNote, deleteNote, updateLead, connected } = useLeads();
 
   const [form, setForm] = useState({
     full_name: lead.full_name || '', email: lead.email || '', contact_number: lead.contact_number || '',
@@ -29,14 +30,42 @@ export default function LeadModal({ lead, onClose, onSave, onDelete, createMode 
   const [editingPay, setEditingPay] = useState(null);
   const [editingNote, setEditingNote] = useState(null);
 
+  const [certs, setCerts] = useState([]);
+  const [comp, setComp] = useState({ program: '', certificate_no: '', batch: '', completed_on: '' });
+  const [compError, setCompError] = useState('');
+  const [compBusy, setCompBusy] = useState(false);
+
   const canHistory = !createMode && connected && lead.id;
 
   useEffect(() => {
     if (canHistory) {
       fetchPayments(lead.id).then(setPayments);
       fetchNotes(lead.id).then(setNotes);
+      supabase.from('completers').select('*').eq('lead_id', String(lead.id)).then(({ data }) => setCerts(data || []));
     }
   }, [canHistory, lead.id, fetchPayments, fetchNotes]);
+
+  const uncertified = form.programs.filter((p) => !certs.some((c) => c.program === p));
+
+  const tagCompleter = async () => {
+    const row = {
+      lead_id: String(lead.id), full_name: form.full_name.trim(), training_duration: form.training_duration || null,
+      program: uncertified.includes(comp.program) ? comp.program : uncertified[0] || '', certificate_no: comp.certificate_no.trim(),
+      batch: comp.batch.trim(), completed_on: comp.completed_on,
+    };
+    if (!row.full_name || !row.program) { setCompError('The lead needs a name and a training program first.'); return; }
+    if (!row.certificate_no || !row.batch || !row.completed_on) { setCompError('Enter the certificate number, batch number and date of completion.'); return; }
+    setCompBusy(true); setCompError('');
+    const { data, error } = await supabase.from('completers').insert([row]).select();
+    setCompBusy(false);
+    if (error || !data?.length) {
+      setCompError(error?.code === '23505' ? 'That certificate number is already assigned to another completer.' : 'Could not save: ' + (error?.message || 'no row returned'));
+      return;
+    }
+    setCerts((c) => [...c, data[0]]);
+    setComp({ program: '', certificate_no: '', batch: comp.batch, completed_on: comp.completed_on });
+    if (!lead.is_completer) updateLead(lead.id, { is_completer: true });
+  };
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const toggleProgram = (p) => set('programs', form.programs.includes(p) ? form.programs.filter((x) => x !== p) : [...form.programs, p]);
@@ -223,6 +252,43 @@ export default function LeadModal({ lead, onClose, onSave, onDelete, createMode 
             <div className="pay-panel">
               <div className="pay-panel-head"><span>Payment Records</span></div>
               <p className="muted" style={{ fontSize: 12.5 }}>{createMode ? 'Save the lead first, then reopen it to record payments.' : 'Payment records require a live Supabase connection.'}</p>
+            </div>
+          )}
+
+          {/* Completion → Completers Database */}
+          {canHistory && (
+            <div className="pay-panel">
+              <div className="pay-panel-head">
+                <span>Completion</span>
+                {certs.length > 0 ? <span className="pay-tag pay-completer">Completer</span> : <span className="pay-tag pay-none">Not yet completed</span>}
+              </div>
+              {certs.map((c) => (
+                <div className="pay-record" key={c.id}>
+                  <span className="pay-rec-amt"><code className="cert-code">{c.certificate_no}</code></span>
+                  <span className="pay-rec-date">{c.program} · {c.batch} · {new Date(c.completed_on + 'T00:00:00').toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                </div>
+              ))}
+              {form.programs.length > 0 && uncertified.length === 0 ? (
+                <p className="muted" style={{ fontSize: 12 }}>Every program on this lead has a certificate. Edit or remove certificates in the Completers Database.</p>
+              ) : (
+                <>
+                  {uncertified.length > 1 && (
+                    <select className="portal-field" style={{ marginBottom: 8 }} value={uncertified.includes(comp.program) ? comp.program : uncertified[0]} onChange={(e) => setComp({ ...comp, program: e.target.value })}>
+                      {uncertified.map((p) => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                  )}
+                  <div className="pay-add">
+                    <input className="portal-field" placeholder="Certificate number" value={comp.certificate_no} onChange={(e) => setComp({ ...comp, certificate_no: e.target.value })} />
+                    <input className="portal-field" placeholder="Batch number" value={comp.batch} onChange={(e) => setComp({ ...comp, batch: e.target.value })} />
+                  </div>
+                  <div className="pay-add">
+                    <input className="portal-field" type="date" title="Date of completion" value={comp.completed_on} onChange={(e) => setComp({ ...comp, completed_on: e.target.value })} />
+                    <button className="portal-btn" onClick={tagCompleter} disabled={compBusy}>{compBusy ? 'Saving…' : 'Tag as Completer'}</button>
+                  </div>
+                  {compError && <div className="completer-error" style={{ marginBottom: 8 }}>{compError}</div>}
+                  <p className="muted" style={{ fontSize: 12 }}>Adds this lead to the Completers Database with their name, program and training duration, so the certificate can be verified on the website.</p>
+                </>
+              )}
             </div>
           )}
 

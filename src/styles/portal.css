@@ -127,6 +127,11 @@
 .workspace-lead { font-size: 15px; color: rgba(255,255,255,0.5); margin-bottom: 48px; }
 
 .workspace-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 32px; }
+.workspace-inner.three { max-width: 1040px; }
+.workspace-inner.three .workspace-cards { grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 860px) { .workspace-inner.three .workspace-cards { grid-template-columns: 1fr; } }
+.ws-card-icon.ws-completers { background: rgba(39,121,91,0.25); }
+.pay-completer { background: #e3f5ec; color: #1a7048; }
 .ws-card {
   width: 100%;
   box-sizing: border-box;

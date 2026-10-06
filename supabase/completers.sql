@@ -10,6 +10,14 @@ create table if not exists completers (
   created_at     timestamptz default now()
 );
 
+-- Which training duration they belonged to, and the CRM lead they came from (if any)
+alter table completers add column if not exists training_duration text;
+alter table completers add column if not exists lead_id text;
+create index if not exists completers_lead_idx on completers (lead_id);
+
+-- Lets the CRM show a "Completer" tag on the lead
+alter table leads add column if not exists is_completer boolean not null default false;
+
 -- Certificate numbers are unique regardless of letter case
 create unique index if not exists completers_certificate_idx
   on completers (upper(trim(certificate_no)));
