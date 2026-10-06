@@ -16,6 +16,7 @@ const SAMPLE = [
 
 const PAGE_SIZE = 25;
 const NONE = '__none__';
+const ALL = '__all__';
 const EMPTY = { certificate_no: '', full_name: '', program: '', batch: '', training_duration: '', completed_on: '' };
 const DUPLICATE = 'That certificate number is already assigned to another completer.';
 const fmtDate = (d) => (d ? new Date(d + 'T00:00:00').toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—');
@@ -33,6 +34,8 @@ export default function Completers() {
   const [page, setPage] = useState(1);
   const [editing, setEditing] = useState(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [openBatch, setOpenBatch] = useState(null); // null = batch list, ALL = every completer, else a batch name
+  const [batchSearch, setBatchSearch] = useState('');
 
   useEffect(() => {
     const load = async () => {
@@ -51,19 +54,33 @@ export default function Completers() {
     hasUnset: rows.some((r) => !r.training_duration),
   }), [rows]);
 
+  const inBatch = openBatch !== null && openBatch !== ALL;
+  const scoped = useMemo(() => (inBatch ? rows.filter((r) => r.batch === openBatch) : rows), [rows, inBatch, openBatch]);
+
   const shown = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return rows.filter((r) => {
+    return scoped.filter((r) => {
       if (filters.duration === NONE ? r.training_duration : filters.duration !== 'all' && r.training_duration !== filters.duration) return false;
       if (filters.program !== 'all' && r.program !== filters.program) return false;
       if (filters.batch !== 'all' && r.batch !== filters.batch) return false;
       return !q || [r.full_name, r.certificate_no, r.program, r.batch].some((v) => v.toLowerCase().includes(q));
     });
-  }, [rows, search, filters]);
+  }, [scoped, search, filters]);
+
+  const batchCards = useMemo(() => {
+    const q = batchSearch.trim().toLowerCase();
+    return options.batch.filter((b) => !q || b.toLowerCase().includes(q)).map((b) => {
+      const list = rows.filter((r) => r.batch === b);
+      const dates = list.map((r) => r.completed_on).sort();
+      return { name: b, count: list.length, programs: uniq(list.map((r) => r.program)), first: dates[0], last: dates[dates.length - 1] };
+    }).sort((a, b) => (b.last || '').localeCompare(a.last || ''));
+  }, [rows, options.batch, batchSearch]);
 
   const setFilter = (k, v) => { setFilters((f) => ({ ...f, [k]: v })); setPage(1); };
   const filtering = search.trim() || Object.values(filters).some((v) => v !== 'all');
   const clearFilters = () => { setSearch(''); setFilters({ duration: 'all', program: 'all', batch: 'all' }); setPage(1); };
+  const open = (batch) => { clearFilters(); setOpenBatch(batch); window.scrollTo(0, 0); };
+  const scopedOptions = { duration: uniq(scoped.map((r) => r.training_duration)), program: uniq(scoped.map((r) => r.program)), hasUnset: scoped.some((r) => !r.training_duration) };
 
   const totalPages = Math.max(1, Math.ceil(shown.length / PAGE_SIZE));
   const current = Math.min(page, totalPages);
@@ -135,16 +152,19 @@ export default function Completers() {
 
         <div className="cdb-head">
           <div className="admin-intro">
-            <h1>Completers</h1>
-            <p>Everyone who finished a PIFSA program. Third parties verify a certificate number on the website and see only the name, program and completion date.</p>
+            {openBatch !== null && <button className="cdb-back" onClick={() => open(null)}>‹ All batches</button>}
+            <h1>{openBatch === null ? 'Batches' : inBatch ? openBatch : 'All Completers'}</h1>
+            <p>{openBatch === null
+              ? 'Choose a batch to work on. Third parties verify a certificate number on the website and see only the name, program and completion date.'
+              : inBatch ? 'Completers recorded under this batch.' : 'Every completer across all batches.'}</p>
           </div>
           <div className="cdb-actions">
             <button className="portal-btn-ghost" onClick={() => setImportOpen(true)}>Import CSV</button>
-            <button className="portal-btn" onClick={() => setEditing(EMPTY)}>＋ Add Completer</button>
+            <button className="portal-btn" onClick={() => setEditing(inBatch ? { ...EMPTY, batch: openBatch } : EMPTY)}>＋ Add Completer</button>
           </div>
         </div>
 
-        {loading ? <div className="panel-loading">Loading…</div> : (
+        {loading ? <div className="panel-loading">Loading…</div> : openBatch === null ? (
           <>
             <div className="cdb-stats">
               <Stat value={rows.length} label="Completers" />
@@ -153,21 +173,56 @@ export default function Completers() {
               <Stat value={rows.filter((r) => r.lead_id).length} label="Tagged from CRM" />
             </div>
 
+            <div className="cdb-batch-bar">
+              <div className="cdb-search">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+                <input placeholder="Find a batch" value={batchSearch} onChange={(e) => setBatchSearch(e.target.value)} />
+              </div>
+              <button className="portal-btn-ghost" onClick={() => open(ALL)}>View all completers</button>
+            </div>
+
+            {batchCards.length === 0 ? (
+              <div className="cdb-card cdb-empty">
+                {rows.length === 0 ? 'No batches yet. Add a completer, import a CSV, or tag a lead as a completer in the CRM.' : 'No batch matches that search.'}
+              </div>
+            ) : (
+              <div className="cdb-batches">
+                {batchCards.map((b) => (
+                  <button className="cdb-batch" key={b.name} onClick={() => open(b.name)}>
+                    <div className="cdb-batch-top">
+                      <span className="cdb-batch-name">{b.name}</span>
+                      <span className="cdb-batch-count">{b.count}<small>{b.count === 1 ? 'completer' : 'completers'}</small></span>
+                    </div>
+                    <div className="cdb-batch-programs">
+                      {b.programs.slice(0, 3).map((p) => <span key={p}>{p}</span>)}
+                      {b.programs.length > 3 && <span className="more">+{b.programs.length - 3} more</span>}
+                    </div>
+                    <div className="cdb-batch-foot">
+                      <span>{b.first === b.last ? `Completed ${fmtDate(b.last)}` : `${fmtDate(b.first)} – ${fmtDate(b.last)}`}</span>
+                      <span className="cdb-batch-go">Open →</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
+        ) : (
+          <>
             <div className="cdb-card">
-              <div className="cdb-toolbar">
+              <div className={'cdb-toolbar' + (inBatch ? ' two' : '')}>
                 <div className="cdb-search">
                   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
                   <input placeholder="Search name or certificate number" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
                 </div>
-                <FilterSelect label="Training duration" value={filters.duration} onChange={(v) => setFilter('duration', v)} all="All durations" options={options.duration}>
-                  {options.hasUnset && <option value={NONE}>Not set</option>}
+                <FilterSelect label="Training duration" value={filters.duration} onChange={(v) => setFilter('duration', v)} all="All durations" options={scopedOptions.duration}>
+                  {scopedOptions.hasUnset && <option value={NONE}>Not set</option>}
                 </FilterSelect>
-                <FilterSelect label="Program" value={filters.program} onChange={(v) => setFilter('program', v)} all="All programs" options={options.program} />
-                <FilterSelect label="Batch" value={filters.batch} onChange={(v) => setFilter('batch', v)} all="All batches" options={options.batch} />
+                <FilterSelect label="Program" value={filters.program} onChange={(v) => setFilter('program', v)} all="All programs" options={scopedOptions.program} />
+                {!inBatch && <FilterSelect label="Batch" value={filters.batch} onChange={(v) => setFilter('batch', v)} all="All batches" options={options.batch} />}
               </div>
 
               <div className="cdb-meta">
-                <span><strong>{shown.length}</strong> {shown.length === 1 ? 'completer' : 'completers'}{filtering ? ` of ${rows.length}` : ''}</span>
+                <span><strong>{shown.length}</strong> {shown.length === 1 ? 'completer' : 'completers'}{filtering ? ` of ${scoped.length}` : ''}</span>
                 {filtering && <button className="cdb-clear" onClick={clearFilters}>Clear filters</button>}
               </div>
 
@@ -179,7 +234,7 @@ export default function Completers() {
                   <tbody>
                     {pageRows.length === 0 && (
                       <tr><td colSpan={7} className="cdb-empty">
-                        {rows.length === 0 ? 'No completers yet. Add one, import a CSV, or tag a lead as a completer in the CRM.' : 'No completers match these filters.'}
+                        {scoped.length === 0 ? 'No completers here yet. Add one, import a CSV, or tag a lead as a completer in the CRM.' : 'No completers match these filters.'}
                       </td></tr>
                     )}
                     {pageRows.map((r) => (
