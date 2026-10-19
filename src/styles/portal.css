@@ -83,6 +83,16 @@
   transition: color 0.2s;
 }
 .auth-back:hover { color: var(--navy); }
+.auth-alt { margin-top: 18px; padding: 12px 14px; background: #f7f9fc; border: 1px solid #edf1f6; border-radius: 12px; font-size: 13px; color: var(--muted); text-align: center; }
+.auth-alt a { color: var(--gold); font-weight: 700; text-decoration: none; }
+.auth-alt a:hover { text-decoration: underline; }
+.auth-screen { position: relative; overflow: hidden; }
+.auth-screen::before { content: ''; position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px); background-size: 48px 48px; -webkit-mask-image: radial-gradient(ellipse at 50% 40%, #000, transparent 70%); mask-image: radial-gradient(ellipse at 50% 40%, #000, transparent 70%); pointer-events: none; }
+.auth-screen > * { position: relative; }
+.auth-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; background: #f1f4f8; border-radius: 12px; padding: 4px; margin-bottom: 22px; }
+.auth-tabs button { border: none; background: none; padding: 10px; border-radius: 9px; font-family: inherit; font-size: 13.5px; font-weight: 700; color: var(--muted); cursor: pointer; }
+.auth-tabs button.active { background: #fff; color: var(--navy); box-shadow: 0 1px 4px rgba(0,32,80,0.1); }
+.auth-ok { color: #1a7048; font-size: 13px; margin-bottom: 14px; background: #e3f5ec; padding: 11px 14px; border-radius: 10px; border-left: 3px solid #1a7048; line-height: 1.5; }
 
 
 /* ─────────────────────────────────────────
@@ -131,6 +141,9 @@
 .workspace-inner.three .workspace-cards { grid-template-columns: repeat(3, 1fr); }
 @media (max-width: 860px) { .workspace-inner.three .workspace-cards { grid-template-columns: 1fr; } }
 .ws-card-icon.ws-completers { background: rgba(39,121,91,0.25); }
+.ws-card-icon.ws-chat { background: rgba(91,141,239,0.22); position: relative; }
+.ws-card-icon.ws-exams { background: rgba(212,169,74,0.22); }
+.ws-badge { position: absolute; top: -6px; right: -6px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 100px; background: #e5484d; color: #fff; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 3px #001e48; }
 .pay-completer { background: #e3f5ec; color: #1a7048; }
 .ws-card {
   width: 100%;

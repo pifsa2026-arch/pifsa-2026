@@ -36,6 +36,8 @@ export default function Completers() {
   const [importOpen, setImportOpen] = useState(false);
   const [openBatch, setOpenBatch] = useState(null); // null = batch list, ALL = every completer, else a batch name
   const [batchSearch, setBatchSearch] = useState('');
+  const [sort, setSort] = useState({ key: 'completed_on', dir: 'desc' });
+  const [copiedId, setCopiedId] = useState(null);
 
   useEffect(() => {
     const load = async () => {
@@ -64,8 +66,11 @@ export default function Completers() {
       if (filters.program !== 'all' && r.program !== filters.program) return false;
       if (filters.batch !== 'all' && r.batch !== filters.batch) return false;
       return !q || [r.full_name, r.certificate_no, r.program, r.batch].some((v) => v.toLowerCase().includes(q));
+    }).sort((a, b) => {
+      const av = a[sort.key] || '', bv = b[sort.key] || '';
+      return natural(String(av), String(bv)) * (sort.dir === 'asc' ? 1 : -1);
     });
-  }, [scoped, search, filters]);
+  }, [scoped, search, filters, sort]);
 
   const batchCards = useMemo(() => {
     const q = batchSearch.trim().toLowerCase();
@@ -81,6 +86,30 @@ export default function Completers() {
   const clearFilters = () => { setSearch(''); setFilters({ duration: 'all', program: 'all', batch: 'all' }); setPage(1); };
   const open = (batch) => { clearFilters(); setOpenBatch(batch); window.scrollTo(0, 0); };
   const scopedOptions = { duration: uniq(scoped.map((r) => r.training_duration)), program: uniq(scoped.map((r) => r.program)), hasUnset: scoped.some((r) => !r.training_duration) };
+
+  const sortBy = (key) => setSort((s) => ({ key, dir: s.key === key && s.dir === 'asc' ? 'desc' : 'asc' }));
+  const sortTh = (k, label) => (
+    <th key={k} aria-sort={sort.key === k ? (sort.dir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+      <button className={'cdb-sort' + (sort.key === k ? ' on' : '')} onClick={() => sortBy(k)}>{label}<span aria-hidden="true">{sort.key === k ? (sort.dir === 'asc' ? '▲' : '▼') : '↕'}</span></button>
+    </th>
+  );
+
+  const verifyLink = (r) => `${window.location.origin}/verify?cert=${encodeURIComponent(r.certificate_no)}`;
+  const copyLink = async (r) => {
+    await navigator.clipboard.writeText(verifyLink(r));
+    setCopiedId(r.id);
+    setTimeout(() => setCopiedId((c) => (c === r.id ? null : c)), 2000);
+  };
+
+  const exportCsv = () => {
+    const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const head = ['certificate_no', 'full_name', 'program', 'batch', 'training_duration', 'completed_on', 'verification_link'];
+    const lines = [head.join(','), ...shown.map((r) => [r.certificate_no, r.full_name, r.program, r.batch, r.training_duration, r.completed_on, verifyLink(r)].map(esc).join(','))];
+    const url = URL.createObjectURL(new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = `completers${inBatch ? '-' + openBatch.replace(/\s+/g, '-') : ''}.csv`; a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const totalPages = Math.max(1, Math.ceil(shown.length / PAGE_SIZE));
   const current = Math.min(page, totalPages);
@@ -223,13 +252,19 @@ export default function Completers() {
 
               <div className="cdb-meta">
                 <span><strong>{shown.length}</strong> {shown.length === 1 ? 'completer' : 'completers'}{filtering ? ` of ${scoped.length}` : ''}</span>
-                {filtering && <button className="cdb-clear" onClick={clearFilters}>Clear filters</button>}
+                <span className="cdb-meta-actions">
+                  {filtering && <button className="cdb-clear" onClick={clearFilters}>Clear filters</button>}
+                  <button className="cdb-clear" onClick={exportCsv} disabled={!shown.length}>Export CSV</button>
+                </span>
               </div>
 
               <div className="cdb-table-wrap">
                 <table className="cdb-table">
                   <thead>
-                    <tr><th>Completer</th><th>Certificate no.</th><th>Program</th><th>Batch</th><th>Training duration</th><th>Completed</th><th aria-label="Actions"></th></tr>
+                    <tr>
+                      {[['full_name', 'Completer'], ['certificate_no', 'Certificate no.'], ['program', 'Program'], ['batch', 'Batch'], ['training_duration', 'Training duration'], ['completed_on', 'Completed']].map(([k, label]) => sortTh(k, label))}
+                      <th aria-label="Actions"></th>
+                    </tr>
                   </thead>
                   <tbody>
                     {pageRows.length === 0 && (
@@ -249,6 +284,7 @@ export default function Completers() {
                         <td className="cdb-muted">{r.training_duration || '—'}</td>
                         <td className="cdb-muted cdb-nowrap">{fmtDate(r.completed_on)}</td>
                         <td className="cdb-nowrap cdb-row-actions">
+                          <button onClick={() => copyLink(r)} title="Copy the public verification link for this certificate">{copiedId === r.id ? 'Copied' : 'Copy link'}</button>
                           <button onClick={() => setEditing(r)}>Edit</button>
                           <button className="del" onClick={() => remove(r)}>Delete</button>
                         </td>

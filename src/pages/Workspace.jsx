@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { supabase, isSupabaseConfigured } from '../lib/supabase.js';
 import { useAuth } from '../lib/AuthContext.jsx';
 import { useIsAdmin } from '../lib/useIsAdmin.js';
 import '../styles/portal.css';
@@ -7,6 +9,14 @@ export default function Workspace() {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { isAdmin, checked } = useIsAdmin();
+
+  const [unread, setUnread] = useState(0);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    supabase.from('chat_conversations').select('unread_staff').gt('unread_staff', 0)
+      .then(({ data }) => setUnread((data || []).reduce((s, c) => s + c.unread_staff, 0)));
+  }, []);
 
   const logout = async () => { await signOut(); navigate('/'); };
 
@@ -47,6 +57,20 @@ export default function Workspace() {
             <h3>Completers Database</h3>
             <p>Record completers by batch and manage the certificate numbers used for public verification.</p>
             <span className="ws-card-go">Open Database →</span>
+          </div>
+
+          <div className="ws-card" role="button" tabIndex={0} onClick={() => navigate('/chat')}>
+            <div className="ws-card-icon ws-chat">💬{unread > 0 && <span className="ws-badge">{unread}</span>}</div>
+            <h3>Live Chat</h3>
+            <p>Answer questions from website visitors and examinees in real time.</p>
+            <span className="ws-card-go">{unread > 0 ? `${unread} unread · Open Inbox →` : 'Open Inbox →'}</span>
+          </div>
+
+          <div className="ws-card" role="button" tabIndex={0} onClick={() => navigate('/exams')}>
+            <div className="ws-card-icon ws-exams">📝</div>
+            <h3>Online Exams</h3>
+            <p>Build or import exams, approve examinees, assign exams to groups, and review results.</p>
+            <span className="ws-card-go">Open Exams →</span>
           </div>
         </div>
 

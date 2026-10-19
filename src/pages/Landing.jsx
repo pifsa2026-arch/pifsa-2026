@@ -2,11 +2,11 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../styles/landing.css';
 import { COURSES, PROCESS_STEPS, GALLERY, HERO_PILLS, ABOUT_STATS } from './landingData.js';
-import { TRAINING_DURATIONS, TRAINING_PROGRAMS, ADMISSION_REQUIREMENTS, HOW_TO_JOIN } from '../lib/config.js';
+import { TRAINING_PROGRAMS, ADMISSION_REQUIREMENTS, HOW_TO_JOIN } from '../lib/config.js';
 import { EventsProvider, useEvents } from '../lib/EventsContext.jsx';
 import StatNumber from '../components/StatNumber.jsx';
 import EnrollForm from '../components/EnrollForm.jsx';
-import VerifyCertificate from '../components/VerifyCertificate.jsx';
+import ChatWidget from '../components/ChatWidget.jsx';
 
 const NAV = ['about', 'calendar', 'courses', 'gallery', 'process', 'contact'];
 
@@ -20,7 +20,6 @@ export default function Landing() {
 
 function LandingInner() {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [verifyOpen, setVerifyOpen] = useState(false);
   const navigate = useNavigate();
   const { displayDurations, displayFeatured } = useEvents();
   const [active, setActive] = useState(0);
@@ -102,7 +101,7 @@ function LandingInner() {
           {NAV.map((id) => (
             <a key={id} onClick={() => go(id)}>{id[0].toUpperCase() + id.slice(1)}</a>
           ))}
-          <a onClick={() => setVerifyOpen(true)} title="Verify a training certificate">Verify</a>
+          <a onClick={() => navigate('/verify')} title="Verify a training certificate">Verify</a>
         </div>
         <div className="header-actions">
           <button className="cta-portal" onClick={() => navigate('/login')}>Portal Login</button>
@@ -121,12 +120,13 @@ function LandingInner() {
         {NAV.map((id) => (
           <a key={id} onClick={() => go(id)}>{id[0].toUpperCase() + id.slice(1)}</a>
         ))}
-        <a onClick={() => { setMenuOpen(false); setVerifyOpen(true); }}>Verify Certificate</a>
+        <a onClick={() => { setMenuOpen(false); navigate('/verify'); }}>Verify Certificate</a>
+        <a onClick={() => { setMenuOpen(false); navigate('/exam-portal'); }}>Exam Portal</a>
         <button className="mobile-nav-cta" onClick={() => go('contact')}>Enroll Now</button>
         <button className="mobile-nav-portal" onClick={() => { setMenuOpen(false); navigate('/login'); }}>Portal Login</button>
       </div>
       {menuOpen && <div className="nav-backdrop open" onClick={() => setMenuOpen(false)} />}
-      {verifyOpen && <VerifyCertificate onClose={() => setVerifyOpen(false)} />}
+      <ChatWidget />
 
       {/* Hero */}
       <div className="hero">
@@ -537,7 +537,9 @@ function LandingInner() {
               <li><a onClick={() => go('calendar')}>2027 Calendar</a></li>
               <li><a onClick={() => go('courses')}>Courses</a></li>
               <li><a onClick={() => go('contact')}>Enroll</a></li>
-              <li><a onClick={() => navigate('/login')}>Portal Login</a></li>
+              <li><a onClick={() => navigate('/verify')}>Verify a Certificate</a></li>
+              <li><a onClick={() => navigate('/exam-portal')}>Exam Portal</a></li>
+              <li><a onClick={() => navigate('/login')}>Staff Login</a></li>
             </ul>
           </div>
         </div>

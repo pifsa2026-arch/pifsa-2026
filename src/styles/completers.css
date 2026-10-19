@@ -45,6 +45,12 @@
 .cdb-meta strong { color: var(--navy); }
 .cdb-clear { background: none; border: none; color: var(--gold); font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer; padding: 4px 0; }
 .cdb-clear:hover { text-decoration: underline; }
+.cdb-clear:disabled { opacity: 0.4; cursor: default; text-decoration: none; }
+.cdb-meta-actions { display: flex; gap: 16px; }
+.cdb-sort { display: inline-flex; align-items: center; gap: 5px; background: none; border: none; padding: 0; font: inherit; color: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
+.cdb-sort span { font-size: 9px; opacity: 0.45; }
+.cdb-sort.on { color: var(--navy); }
+.cdb-sort.on span { opacity: 1; color: var(--gold); }
 
 .cdb-table-wrap { overflow-x: auto; }
 .cdb-table { width: 100%; border-collapse: collapse; font-size: 13.5px; color: #1e2d40; }
