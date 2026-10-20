@@ -82,6 +82,7 @@ export default function Verify() {
               <div><dt>Program taken</dt><dd>{result.program}</dd></div>
               <div><dt>Date of completion</dt><dd>{fmtDate(result.completed_on)}</dd></div>
               <div><dt>Certificate number</dt><dd className="vp-mono">{checked.value}</dd></div>
+              {result.batch && <div><dt>Batch number</dt><dd>{result.batch}</dd></div>}
             </dl>
             <div className="vp-result-foot">
               <span>Checked on {fmtNow(checked.at)}</span>
@@ -139,7 +140,7 @@ export default function Verify() {
           </div>
         )}
 
-        <p className="vp-privacy">For privacy, verification only shows the holder’s name, program and date of completion.</p>
+        <p className="vp-privacy">For privacy, verification only shows the holder’s name, program, date of completion and batch number.</p>
       </main>
     </div>
   );

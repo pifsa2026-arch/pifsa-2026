@@ -5,6 +5,7 @@ import { useIsAdmin } from '../lib/useIsAdmin.js';
 import { EventsProvider, useEvents } from '../lib/EventsContext.jsx';
 import '../styles/portal.css';
 import '../styles/admin.css';
+import FormsAdmin from '../components/admin/FormsAdmin.jsx';
 
 export default function AdminConsole() {
   return (
@@ -20,6 +21,7 @@ function AdminInner() {
   const { isAdmin, checked } = useIsAdmin();
   const { events, loading, connected, addEvent, updateEvent, deleteEvent } = useEvents();
   const [editing, setEditing] = useState(null);
+  const [section, setSection] = useState(() => (new URLSearchParams(window.location.search).get('tab') === 'forms' ? 'forms' : 'events'));
 
   if (checked && !isAdmin) {
     return (
@@ -53,7 +55,7 @@ function AdminInner() {
           <img src="/images/logo.png" alt="PIFSA" />
           <div>
             <div className="admin-top-title">Admin Console</div>
-            <div className="admin-top-sub">Landing page content</div>
+            <div className="admin-top-sub">Website content and online forms</div>
           </div>
         </div>
         <div className="admin-top-right">
@@ -64,6 +66,11 @@ function AdminInner() {
       </header>
 
       <div className="admin-body">
+        <nav className="admin-tabs" aria-label="Admin sections">
+          <button className={section === 'events' ? 'on' : ''} onClick={() => setSection('events')}>Calendar &amp; Events</button>
+          <button className={section === 'forms' ? 'on' : ''} onClick={() => setSection('forms')}>Online Forms</button>
+        </nav>
+        {section === 'forms' ? <FormsAdmin /> : (<>
         {!connected && <div className="notice">Not connected to Supabase, or the <code>events</code> table is missing. Run the schema SQL, then reload. Changes here won't persist until connected.</div>}
 
         <div className="admin-intro">
@@ -122,6 +129,7 @@ function AdminInner() {
             </div>
           </>
         )}
+        </>)}
       </div>
 
       {editing && <EventEditor ev={editing} onCancel={() => setEditing(null)} onSave={saveEvent} />}

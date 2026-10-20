@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import Landing from './pages/Landing.jsx';
+import SiteLayout from './components/site/SiteLayout.jsx';
+import { Home, About, Calendar, Courses, Gallery, Process } from './pages/site/SitePages.jsx';
 import Login from './pages/Login.jsx';
 import Portal from './pages/Portal.jsx';
 import Workspace from './pages/Workspace.jsx';
@@ -15,6 +16,7 @@ const LiveChat = lazy(() => import('./pages/LiveChat.jsx'));
 const Exams = lazy(() => import('./pages/Exams.jsx'));
 const ExamPortal = lazy(() => import('./pages/ExamPortal.jsx'));
 const TakeExam = lazy(() => import('./pages/TakeExam.jsx'));
+const FormPage = lazy(() => import('./pages/FormPage.jsx'));
 
 const Loading = () => <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', color: '#00264d' }}>Loading…</div>;
 
@@ -24,7 +26,15 @@ export default function App() {
       <BrowserRouter>
         <Suspense fallback={<Loading />}>
           <Routes>
-            <Route path="/" element={<Landing />} />
+            <Route element={<SiteLayout />}>
+              <Route path="/" element={<Home />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/calendar" element={<Calendar />} />
+              <Route path="/courses" element={<Courses />} />
+              <Route path="/gallery" element={<Gallery />} />
+              <Route path="/process" element={<Process />} />
+            </Route>
+            <Route path="/f/:slug" element={<FormPage />} />
             <Route path="/login" element={<Login />} />
             <Route path="/verify" element={<Verify />} />
             <Route path="/exam-portal" element={<ExamPortal />} />

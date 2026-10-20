@@ -103,7 +103,7 @@ export default function Completers() {
 
   const exportCsv = () => {
     const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    const head = ['certificate_no', 'full_name', 'program', 'batch', 'training_duration', 'completed_on', 'verification_link'];
+    const head = ['certificate_no', 'full_name', 'program', 'batch_number', 'training_duration', 'completed_on', 'verification_link'];
     const lines = [head.join(','), ...shown.map((r) => [r.certificate_no, r.full_name, r.program, r.batch, r.training_duration, r.completed_on, verifyLink(r)].map(esc).join(','))];
     const url = URL.createObjectURL(new Blob(['﻿' + lines.join('\n')], { type: 'text/csv;charset=utf-8' }));
     const a = document.createElement('a');
@@ -184,7 +184,7 @@ export default function Completers() {
             {openBatch !== null && <button className="cdb-back" onClick={() => open(null)}>‹ All batches</button>}
             <h1>{openBatch === null ? 'Batches' : inBatch ? openBatch : 'All Completers'}</h1>
             <p>{openBatch === null
-              ? 'Choose a batch to work on. Third parties verify a certificate number on the website and see only the name, program and completion date.'
+              ? 'Choose a batch to work on. Third parties verify by certificate number only and see the name, program, completion date and batch number.'
               : inBatch ? 'Completers recorded under this batch.' : 'Every completer across all batches.'}</p>
           </div>
           <div className="cdb-actions">
@@ -247,7 +247,7 @@ export default function Completers() {
                   {scopedOptions.hasUnset && <option value={NONE}>Not set</option>}
                 </FilterSelect>
                 <FilterSelect label="Program" value={filters.program} onChange={(v) => setFilter('program', v)} all="All programs" options={scopedOptions.program} />
-                {!inBatch && <FilterSelect label="Batch" value={filters.batch} onChange={(v) => setFilter('batch', v)} all="All batches" options={options.batch} />}
+                {!inBatch && <FilterSelect label="Batch number" value={filters.batch} onChange={(v) => setFilter('batch', v)} all="All batches" options={options.batch} />}
               </div>
 
               <div className="cdb-meta">
@@ -262,7 +262,7 @@ export default function Completers() {
                 <table className="cdb-table">
                   <thead>
                     <tr>
-                      {[['full_name', 'Completer'], ['certificate_no', 'Certificate no.'], ['program', 'Program'], ['batch', 'Batch'], ['training_duration', 'Training duration'], ['completed_on', 'Completed']].map(([k, label]) => sortTh(k, label))}
+                      {[['full_name', 'Completer'], ['certificate_no', 'Certificate no.'], ['program', 'Program'], ['batch', 'Batch no.'], ['training_duration', 'Training duration'], ['completed_on', 'Completed']].map(([k, label]) => sortTh(k, label))}
                       <th aria-label="Actions"></th>
                     </tr>
                   </thead>
@@ -415,7 +415,7 @@ function CsvImport({ existing, onClose, onImport }) {
         </div>
         <div className="modal-body">
           <p className="cdb-help">
-            One completer per row. Required columns: <code>certificate_no</code>, <code>full_name</code>, <code>program</code>, <code>batch</code>, <code>completed_on</code>.
+            One completer per row. Required columns: <code>certificate_no</code>, <code>full_name</code>, <code>program</code>, <code>batch_number</code>, <code>completed_on</code>.
             Optional: <code>training_duration</code>. Dates work best as YYYY-MM-DD; Excel-style MM/DD/YYYY is also accepted.
           </p>
           <div className="cdb-drop" onClick={() => fileRef.current?.click()}>

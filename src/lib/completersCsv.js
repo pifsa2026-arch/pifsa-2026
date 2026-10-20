@@ -1,5 +1,5 @@
 export const CSV_TEMPLATE =
-  'certificate_no,full_name,program,batch,training_duration,completed_on\n' +
+  'certificate_no,full_name,program,batch_number,training_duration,completed_on\n' +
   'PIFSA-2025-FP-0001,Juan Dela Cruz,Forensic Psychology,Batch 12,"August 29 – October 17, 2025",2025-11-08\n';
 
 const DURATION_ALIASES = ['trainingduration', 'duration', 'schedule'];
@@ -60,7 +60,7 @@ export function readCompletersCsv(text, existingCertNos) {
   const col = {};
   for (const [field, names] of Object.entries(ALIASES)) col[field] = header.findIndex((h) => names.includes(h));
   const missing = Object.keys(col).filter((f) => col[f] === -1);
-  if (missing.length) return { fatal: `Missing column${missing.length > 1 ? 's' : ''}: ${missing.join(', ')}. Use the template so the headers match.` };
+  if (missing.length) return { fatal: `Missing column${missing.length > 1 ? 's' : ''}: ${missing.map((m) => (m === 'batch' ? 'batch_number' : m)).join(', ')}. Use the template so the headers match.` };
 
   const durationCol = header.findIndex((h) => DURATION_ALIASES.includes(h));
 
