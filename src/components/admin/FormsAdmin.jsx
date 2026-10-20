@@ -162,7 +162,11 @@ function ImportDialog({ onClose, onImported }) {
     setBusy(true); setError(''); setResult(null);
     try {
       const res = await fetch('/api/import-form?url=' + encodeURIComponent(url.trim()));
-      if (!(res.headers.get('content-type') || '').includes('json')) throw new Error('The importer only runs on the live site (pifsatraining.com). Try it there.');
+      if (!(res.headers.get('content-type') || '').includes('json')) {
+        throw new Error(/localhost|127\.0\.0\.1/.test(window.location.hostname)
+          ? 'The importer only runs on the live site (pifsatraining.com). Try it there.'
+          : `The importer did not respond properly (error ${res.status}). Please try again in a minute.`);
+      }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Import failed.');
       if (!data.questions.length) throw new Error('No questions were found in that form.');

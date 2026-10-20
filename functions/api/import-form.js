@@ -70,14 +70,21 @@ export async function onRequestGet({ request }) {
     redirect: 'follow',
     headers: { 'User-Agent': 'Mozilla/5.0 (compatible; PIFSA form importer)', 'Accept-Language': 'en' },
   });
+  // Note: never answer with a 5xx status here, Cloudflare swaps those for its own plain-text error page
   const finalUrl = new URL(res.url);
-  if (finalUrl.hostname === 'accounts.google.com') {
-    return json({ error: 'This form requires signing in to Google. In Google Forms, turn off "Restrict to users in your organization" and "Collect email addresses: Verified", or share the link to the live form, then try again.' }, 422);
+  if (finalUrl.hostname === 'accounts.google.com' || res.status === 401 || res.status === 403) {
+    return json({
+      error: 'Google only shows this form to people who are signed in, so it cannot be read from outside. '
+        + 'In the Google Form, open Settings → Responses and temporarily turn off "Limit to 1 response", set "Collect email addresses" to something other than "Verified", '
+        + 'and turn off "Restrict to users in your organization". File upload questions also force sign-in, so remove them temporarily. '
+        + 'Import again, then switch the settings back.',
+    }, 422);
   }
   if (finalUrl.hostname !== 'docs.google.com' || !finalUrl.pathname.startsWith('/forms/')) {
     return json({ error: 'That link did not lead to a Google Form.' }, 400);
   }
-  if (!res.ok) return json({ error: `Google returned an error (${res.status}). Check that the form link is correct and the form is published.` }, 502);
+  if (res.status === 404) return json({ error: 'Google could not find that form. Check the link, and make sure the form is published.' }, 404);
+  if (!res.ok) return json({ error: `Google returned an error (${res.status}). Check that the form link is correct and the form is published.` }, 422);
 
   const html = await res.text();
   let form;
