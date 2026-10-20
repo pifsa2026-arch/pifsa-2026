@@ -34,6 +34,7 @@ export default function App() {
               <Route path="/gallery" element={<Gallery />} />
               <Route path="/process" element={<Process />} />
             </Route>
+            <Route path="/apply" element={<FormPage />} />
             <Route path="/f/:slug" element={<FormPage />} />
             <Route path="/login" element={<Login />} />
             <Route path="/verify" element={<Verify />} />

@@ -21,8 +21,18 @@ function problemFor(q, v) {
   return '';
 }
 
+// The permanent /apply link shows the form marked as main, or else the newest open form
+async function loadForm(slug) {
+  if (slug) return (await supabase.from('forms').select('*').eq('slug', slug).maybeSingle()).data;
+  const primary = (await supabase.from('forms').select('*').eq('is_primary', true).maybeSingle()).data;
+  if (primary) return primary;
+  return (await supabase.from('forms').select('*').eq('is_open', true).order('updated_at', { ascending: false }).limit(1).maybeSingle()).data;
+}
+
 export default function FormPage() {
-  const { slug } = useParams();
+  const params = useParams();
+  const [resolvedSlug, setResolvedSlug] = useState(params.slug || null);
+  const slug = resolvedSlug || params.slug || 'apply';
   const [form, setForm] = useState(undefined); // undefined = loading, null = not found
   const [answers, setAnswers] = useState(() => readDraft(slug));
   const [errors, setErrors] = useState({});
@@ -32,11 +42,15 @@ export default function FormPage() {
 
   useEffect(() => {
     if (!isSupabaseConfigured) { setForm(null); return; }
-    supabase.from('forms').select('*').eq('slug', slug).maybeSingle().then(({ data }) => {
+    loadForm(params.slug).then((data) => {
       setForm(data || null);
-      if (data) document.title = `${data.title} · PIFSA`;
+      if (data) {
+        document.title = `${data.title} · PIFSA`;
+        setResolvedSlug(data.slug);
+        setAnswers((a) => (Object.keys(a).length ? a : readDraft(data.slug)));
+      }
     });
-  }, [slug]);
+  }, [params.slug]);
 
   useEffect(() => { if (form && status !== 'done') saveDraft(slug, answers); }, [answers, form, slug, status]);
 

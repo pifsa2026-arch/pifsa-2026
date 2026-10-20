@@ -23,6 +23,10 @@ create table if not exists forms (
   updated_at      timestamptz default now()
 );
 
+-- The main form is the one shown at the permanent link /apply
+alter table forms add column if not exists is_primary boolean not null default false;
+create unique index if not exists forms_one_primary on forms (is_primary) where is_primary;
+
 create table if not exists form_responses (
   id         uuid primary key default gen_random_uuid(),
   form_id    uuid not null references forms (id) on delete cascade,

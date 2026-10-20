@@ -109,3 +109,5 @@
   .fe2-type { width: 100%; }
   .fe2-main { padding: 10px; }
 }
+.fa-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+.fa-pill.main { background: var(--navy); color: var(--gold-2); }

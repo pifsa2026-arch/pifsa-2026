@@ -29,7 +29,7 @@
 .events-section { background: #fff; padding: 90px 0 30px; }
 .events-head { max-width: 1200px; margin: 0 auto; padding: 0 40px; }
 .events-head .section-subtitle { margin-bottom: 0; }
-.events-section .fe-slideshow-outer { margin-top: 32px; }
+.events-section .fe-slideshow-outer { max-width: 1200px; margin: 32px auto 0; padding-left: 40px; padding-right: 40px; }
 .events-section .fe-dot { background: rgba(0,38,77,0.2); }
 .events-section .fe-dot.active { background: var(--gold); }
 
@@ -91,6 +91,7 @@
   .ph p { font-size: 15.5px; }
   .events-section { padding: 64px 0 20px; }
   .events-head { padding: 0 20px; }
+  .events-section .fe-slideshow-outer { padding-left: 0; padding-right: 0; }
   .lightbox { padding: 20px 12px 70px; }
   .lb-nav { top: auto; bottom: 14px; transform: none; }
 }
@@ -98,4 +99,14 @@
   .mini-steps { grid-template-columns: 1fr; }
   .gal-grid { grid-template-columns: 1fr; grid-auto-rows: 220px; }
   .gal-item.wide { grid-column: auto; }
+}
+
+/* Event flyers keep their real proportions: 16:9 cards, image fitted inside (never stretched) */
+.fe-slide .featured-event.has-image { height: auto; aspect-ratio: 16 / 9; }
+.featured-event.has-image { background-size: contain !important; background-position: center !important; background-repeat: no-repeat !important; background-color: #001a36; }
+.fe-arrow { top: calc(50% - 12px); }
+@media (max-width: 860px) {
+  .fe-slide .featured-event.has-image { aspect-ratio: auto; }
+  .featured-event.has-image { padding-top: 56.25%; background-position: top center !important; background-size: 100% auto !important; }
+  .fe-arrow { top: calc(12px + 25vw); }
 }

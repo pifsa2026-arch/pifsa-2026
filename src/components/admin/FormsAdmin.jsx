@@ -9,6 +9,7 @@ import '../../styles/forms-admin.css';
 
 const fmt = (iso) => (iso ? new Date(iso).toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—');
 const linkFor = (slug) => `${window.location.origin}/f/${slug}`;
+const pathOf = (f) => (f.is_primary ? '/apply' : `/f/${f.slug}`);
 
 export default function FormsAdmin() {
   const [forms, setForms] = useState([]);
@@ -34,10 +35,16 @@ export default function FormsAdmin() {
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  const copy = async (slug) => {
-    await navigator.clipboard.writeText(linkFor(slug));
-    setCopied(slug);
+  const copy = async (f) => {
+    await navigator.clipboard.writeText(window.location.origin + pathOf(f));
+    setCopied(f.slug);
     setTimeout(() => setCopied(''), 2000);
+  };
+  // Only one form can be the main /apply form, so clear the current one first
+  const makePrimary = async (f) => {
+    const off = await supabase.from('forms').update({ is_primary: false }).eq('is_primary', true);
+    const on = off.error ? off : await supabase.from('forms').update({ is_primary: true, is_open: true, updated_at: new Date().toISOString() }).eq('id', f.id);
+    if (on.error) setError(on.error.message); else load();
   };
   const toggleOpen = async (f) => {
     const { error: err } = await supabase.from('forms').update({ is_open: !f.is_open, updated_at: new Date().toISOString() }).eq('id', f.id);
@@ -47,7 +54,7 @@ export default function FormsAdmin() {
     const taken = new Set(forms.map((x) => x.slug));
     let slug = `${f.slug}-copy`.slice(0, 56), n = 2;
     while (taken.has(slug)) slug = `${f.slug.slice(0, 52)}-copy-${n++}`;
-    setView({ mode: 'edit', form: { ...f, id: undefined, slug, title: `${f.title} (copy)`, is_open: false, questions: f.questions.map((q) => ({ ...q, id: newId() })) } });
+    setView({ mode: 'edit', form: { ...f, id: undefined, slug, title: `${f.title} (copy)`, is_open: false, is_primary: false, questions: f.questions.map((q) => ({ ...q, id: newId() })) } });
   };
   const remove = async (f) => {
     if (!window.confirm(`Delete "${f.title}" and all ${counts[f.id] || 0} responses? This cannot be undone.`)) return;
@@ -63,7 +70,7 @@ export default function FormsAdmin() {
       <div className="admin-section-head fa-head">
         <div>
           <h2>Online Forms</h2>
-          <p className="fa-sub">Google-Form-style pages at <code>{window.location.host}/f/your-form-name</code>. They are not linked from the website, so share the link where you need it. Duplicate a form for each new training duration.</p>
+          <p className="fa-sub">Share one permanent link, <code>{window.location.host}/apply</code>. It always opens the form marked <b>Main</b>. For a new training duration, duplicate the form, update it, then click <b>Set as main</b>. The link you already shared keeps working. Each form also has its own <code>/f/…</code> link. Forms are not linked from the website.</p>
         </div>
         <button className="portal-btn sm" onClick={() => setView({ mode: 'edit', form: blankForm() })}>＋ New form</button>
       </div>
@@ -75,13 +82,16 @@ export default function FormsAdmin() {
           {forms.map((f) => (
             <article className="fa-card" key={f.id} style={{ '--fc': f.theme_color }}>
               <div className="fa-card-top">
-                <span className={'fa-pill ' + (f.is_open ? 'open' : 'closed')}>{f.is_open ? 'Accepting responses' : 'Closed'}</span>
+                <span className="fa-pills">
+                  {f.is_primary && <span className="fa-pill main">Main · /apply</span>}
+                  <span className={'fa-pill ' + (f.is_open ? 'open' : 'closed')}>{f.is_open ? 'Accepting responses' : 'Closed'}</span>
+                </span>
                 <label className="switch" title={f.is_open ? 'Close this form' : 'Open this form'}>
                   <input type="checkbox" checked={f.is_open} onChange={() => toggleOpen(f)} /><span className="switch-slider" />
                 </label>
               </div>
               <h3>{f.title}</h3>
-              <a className="fa-link" href={`/f/${f.slug}`} target="_blank" rel="noreferrer">/f/{f.slug} ↗</a>
+              <a className="fa-link" href={pathOf(f)} target="_blank" rel="noreferrer">{pathOf(f)} ↗</a>
               <div className="fa-stats">
                 <span><b>{counts[f.id] || 0}</b> responses</span>
                 <span><b>{f.questions.filter((q) => q.type !== 'section').length}</b> questions</span>
@@ -91,7 +101,8 @@ export default function FormsAdmin() {
               <div className="fa-actions">
                 <button onClick={() => setView({ mode: 'responses', form: f })}>Responses</button>
                 <button onClick={() => setView({ mode: 'edit', form: f })}>Edit</button>
-                <button onClick={() => copy(f.slug)}>{copied === f.slug ? 'Copied' : 'Copy link'}</button>
+                <button onClick={() => copy(f)}>{copied === f.slug ? 'Copied' : 'Copy link'}</button>
+                {!f.is_primary && <button onClick={() => makePrimary(f)} title="Make this the form people see at /apply">Set as main</button>}
                 <button onClick={() => duplicate(f)}>Duplicate</button>
                 <button className="del" onClick={() => remove(f)}>Delete</button>
               </div>
