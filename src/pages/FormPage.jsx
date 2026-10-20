@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase, isSupabaseConfigured } from '../lib/supabase.js';
-import { isEmpty } from '../lib/forms.js';
+import { isEmpty, isFileAnswer, programName } from '../lib/forms.js';
+import { newId } from '../lib/examParser.js';
 import { TRAINING_PROGRAMS, TRAINING_DURATIONS, programsForDuration, durationNote } from '../lib/config.js';
 import '../styles/form-page.css';
 
@@ -26,6 +27,84 @@ function optionsFor(q, answers, questions) {
   return q.options;
 }
 const optionLabel = (q, o) => (q.lead_field === 'training_duration' ? o + durationNote(o) : o);
+
+// Lines starting with "* " or "- " become bullet points
+function RichText({ text }) {
+  const out = [];
+  let list = null;
+  String(text || '').split('\n').forEach((raw, i) => {
+    const line = raw.trim();
+    if (!line) { list = null; return; }
+    const bullet = line.match(/^[*•-]\s+(.*)$/);
+    if (bullet) {
+      if (!list) { list = []; out.push(<ul key={`u${i}`}>{list}</ul>); }
+      list.push(<li key={i}>{bullet[1]}</li>);
+    } else {
+      list = null;
+      out.push(<p key={i}>{line}</p>);
+    }
+  });
+  return <div className="gf-rich">{out}</div>;
+}
+
+function TrainingDetails({ d }) {
+  if (!d || !(d.program || d.training_duration || d.blocks?.length)) return null;
+  return (
+    <div className="gf-details">
+      <div className="gf-details-title">Training Details and Registration Form</div>
+      {d.program && (
+        <div className="gf-detail"><b>Training Program</b><p>{programName(d.program)}{d.class_code ? ` (${d.class_code})` : ''}</p></div>
+      )}
+      {d.training_duration && <div className="gf-detail"><b>Training Duration</b><p>{d.training_duration}</p></div>}
+      {(d.blocks || []).filter((b) => b.label || b.text).map((b) => (
+        <div className="gf-detail" key={b.id}>{b.label && <b>{b.label}</b>}<RichText text={b.text} /></div>
+      ))}
+    </div>
+  );
+}
+
+const MAX_UPLOAD = 10 * 1024 * 1024;
+
+// Uploads straight to private storage; the answer keeps the stored file's path for staff to open
+function FileField({ q, value, slug, onChange, onBusy }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const [preview, setPreview] = useState('');
+
+  const pick = async (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    if (file.size > MAX_UPLOAD) { setErr('That file is larger than 10 MB.'); return; }
+    if (!/^image\//.test(file.type) && file.type !== 'application/pdf') { setErr('Upload an image (JPG, PNG) or a PDF.'); return; }
+    setErr(''); setBusy(true); onBusy(1);
+    const safe = file.name.replace(/[^a-zA-Z0-9._-]+/g, '-').slice(-80);
+    const path = `${slug}/${newId()}-${safe}`;
+    const { error } = await supabase.storage.from('form-uploads').upload(path, file, { contentType: file.type, upsert: false });
+    setBusy(false); onBusy(-1);
+    if (error) { setErr('Upload failed: ' + error.message); return; }
+    setPreview(file.type.startsWith('image/') ? URL.createObjectURL(file) : '');
+    onChange({ path, name: file.name, size: file.size, type: file.type });
+  };
+
+  return (
+    <div className="gf-file">
+      {isFileAnswer(value) ? (
+        <div className="gf-file-done">
+          {preview ? <img src={preview} alt="" /> : <span className="gf-file-icon">📄</span>}
+          <div><b>{value.name}</b><small>{Math.max(1, Math.round(value.size / 1024))} KB · uploaded</small></div>
+          <button type="button" onClick={() => { onChange(null); setPreview(''); }}>Remove</button>
+        </div>
+      ) : (
+        <label className={'gf-file-pick' + (busy ? ' busy' : '')}>
+          <input type="file" accept="image/*,application/pdf" onChange={pick} disabled={busy} aria-label={q.label} />
+          <span>{busy ? 'Uploading…' : '⬆ Add file'}</span>
+        </label>
+      )}
+      {err && <div className="gf-err" role="alert">⚠ {err}</div>}
+    </div>
+  );
+}
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const PHONE = /^[+()\d\s-]{7,20}$/;
@@ -57,6 +136,7 @@ export default function FormPage() {
   const [status, setStatus] = useState('idle'); // idle | sending | done
   const [serverError, setServerError] = useState('');
   const [message, setMessage] = useState('');
+  const [uploading, setUploading] = useState(0);
 
   useEffect(() => {
     if (!isSupabaseConfigured) { setForm(null); return; }
@@ -133,6 +213,7 @@ export default function FormPage() {
     <form onSubmit={submit} noValidate>
       <div className="gf-card gf-head">
         <h1>{form.title}</h1>
+        <TrainingDetails d={form.details} />
         {form.description && <p className="gf-desc">{form.description}</p>}
         {hasRequired && <div className="gf-req-note"><span>*</span> Indicates required question</div>}
       </div>
@@ -162,6 +243,7 @@ export default function FormPage() {
             {q.type === 'phone' && <input id={inputId} type="tel" autoComplete="tel" className="gf-input" value={v || ''} onChange={(e) => set(q, e.target.value)} placeholder="09XX XXX XXXX" maxLength={30} />}
             {q.type === 'number' && <input id={inputId} inputMode="decimal" className="gf-input" value={v || ''} onChange={(e) => set(q, e.target.value)} placeholder="Your answer" maxLength={30} />}
             {q.type === 'date' && <input id={inputId} type="date" className="gf-input gf-date" value={v || ''} onChange={(e) => set(q, e.target.value)} />}
+            {q.type === 'file' && <FileField q={q} value={v} slug={slug} onChange={(val) => set(q, val)} onBusy={(d) => setUploading((n) => n + d)} />}
             {q.type === 'paragraph' && <textarea id={inputId} className="gf-input gf-area" rows={3} value={v || ''} onChange={(e) => set(q, e.target.value)} placeholder="Your answer" maxLength={5000} />}
             {q.type === 'dropdown' && (
               <select id={inputId} className="gf-select" value={v || ''} onChange={(e) => set(q, e.target.value)}>
@@ -191,7 +273,7 @@ export default function FormPage() {
 
       {serverError && <div className="gf-card gf-server-err" role="alert">{serverError}</div>}
       <div className="gf-actions">
-        <button className="gf-submit" disabled={status === 'sending'}>{status === 'sending' ? 'Submitting…' : 'Submit'}</button>
+        <button className="gf-submit" disabled={status === 'sending' || uploading > 0}>{uploading > 0 ? 'Uploading…' : status === 'sending' ? 'Submitting…' : 'Submit'}</button>
         <button type="button" className="gf-link" onClick={() => { if (window.confirm('Clear all your answers?')) { setAnswers({}); setErrors({}); } }}>Clear form</button>
       </div>
     </form>

@@ -3,8 +3,9 @@ import { supabase, isSupabaseConfigured } from '../../lib/supabase.js';
 import { newId } from '../../lib/examParser.js';
 import {
   QTYPES, OPTION_TYPES, LEAD_FIELDS, THEME_COLORS, PRESET_OPTIONS,
-  question, slugify, blankForm, formatAnswer, resizeImage,
+  question, slugify, blankForm, formatAnswer, resizeImage, isFileAnswer, programCode, detailBlock,
 } from '../../lib/forms.js';
+import { durationsForProgram, durationNote } from '../../lib/config.js';
 import '../../styles/forms-admin.css';
 
 const fmt = (iso) => (iso ? new Date(iso).toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—');
@@ -148,7 +149,7 @@ function toEditorForm(g) {
     if (OPTION_TYPES.includes(next.type) && !next.options.length) next.options = ['Option 1'];
     return next;
   });
-  return { ...blankForm(), title: g.title || 'Imported form', description: g.description || '', slug: '', is_open: false, questions };
+  return { ...blankForm(), title: g.title || 'Imported form', description: g.description || '', slug: '', is_open: false, details: { class_code: '', program: '', training_duration: '', blocks: [] }, questions };
 }
 
 function ImportDialog({ onClose, onImported }) {
@@ -199,6 +200,93 @@ function ImportDialog({ onClose, onImported }) {
       </div>
     </div>
   );
+}
+
+// Training details at the top of a registration form. Program and duration also fill every lead.
+function DetailsEditor({ details, title, onChange }) {
+  const d = { class_code: '', program: '', training_duration: '', blocks: [], ...details };
+  const blocks = d.blocks || [];
+  const durations = durationsForProgram(d.program);
+  const update = (patch, nextTitle) => onChange({ ...d, ...patch }, nextTitle);
+  const setBlocks = (next) => update({ blocks: next });
+  const moveBlock = (i, dir) => {
+    const next = [...blocks]; const j = i + dir;
+    if (j < 0 || j >= next.length) return;
+    [next[i], next[j]] = [next[j], next[i]];
+    setBlocks(next);
+  };
+
+  // Switching program swaps the code at the start of the class code (and the title if it matched)
+  const changeProgram = (program) => {
+    const oldCode = programCode(d.program), newCode = programCode(program);
+    let classCode = d.class_code;
+    if (oldCode && newCode && classCode.startsWith(oldCode)) classCode = newCode + classCode.slice(oldCode.length);
+    else if (!classCode && newCode) classCode = `${newCode} Class `;
+    const duration = durationsForProgram(program).includes(d.training_duration) ? d.training_duration : '';
+    update({ program, class_code: classCode, training_duration: duration }, title === d.class_code ? classCode : undefined);
+  };
+
+  return (
+    <div className="fe2-card fe2-details">
+      <div className="fe2-details-head">
+        <h3>Training details</h3>
+        <small>Shown at the top of the form. The program and duration are also saved on every lead from this form.</small>
+      </div>
+      <div className="fe2-details-grid">
+        <label>Training program
+          <select className="portal-field sm" value={d.program} onChange={(e) => changeProgram(e.target.value)}>
+            <option value="">No program</option>
+            {PRESET_OPTIONS.programs.map((p) => <option key={p} value={p}>{p}</option>)}
+          </select>
+        </label>
+        <label>Class code
+          <input className="portal-field sm" value={d.class_code} placeholder="e.g. PCFPsy Class 2027-13"
+            onChange={(e) => update({ class_code: e.target.value }, title === d.class_code ? e.target.value : undefined)} />
+        </label>
+        <label>Training duration
+          <select className="portal-field sm" value={d.training_duration} onChange={(e) => update({ training_duration: e.target.value })}>
+            <option value="">No duration</option>
+            {durations.map((x) => <option key={x} value={x}>{x}{durationNote(x)}</option>)}
+          </select>
+        </label>
+      </div>
+
+      <div className="fe2-blocks">
+        {blocks.map((b, i) => (
+          <div className="fe2-block" key={b.id}>
+            <div className="fe2-block-head">
+              <input className="fe2-block-label" value={b.label} placeholder="Section title, e.g. Training Modality"
+                onChange={(e) => setBlocks(blocks.map((x) => (x.id === b.id ? { ...x, label: e.target.value } : x)))} />
+              <div className="fe2-tools">
+                <button onClick={() => moveBlock(i, -1)} disabled={i === 0} aria-label="Move up">↑</button>
+                <button onClick={() => moveBlock(i, 1)} disabled={i === blocks.length - 1} aria-label="Move down">↓</button>
+                <button className="del" onClick={() => setBlocks(blocks.filter((x) => x.id !== b.id))} aria-label="Delete section" title="Delete">🗑</button>
+              </div>
+            </div>
+            <textarea className="portal-field fe2-block-text" rows={Math.min(8, Math.max(2, b.text.split('\n').length + 1))} value={b.text}
+              onChange={(e) => setBlocks(blocks.map((x) => (x.id === b.id ? { ...x, text: e.target.value } : x)))} />
+          </div>
+        ))}
+      </div>
+      <div className="fe2-blocks-foot">
+        <button onClick={() => setBlocks([...blocks, detailBlock('', '')])}>+ Add detail section</button>
+        <span>Start a line with * to make a bullet point.</span>
+      </div>
+    </div>
+  );
+}
+
+// Uploaded files are private, so staff open them through a short-lived signed link
+function FileLink({ value }) {
+  const [busy, setBusy] = useState(false);
+  const open = async () => {
+    setBusy(true);
+    const { data, error } = await supabase.storage.from('form-uploads').createSignedUrl(value.path, 600);
+    setBusy(false);
+    if (error) { alert('Could not open the file: ' + error.message); return; }
+    window.open(data.signedUrl, '_blank', 'noopener');
+  };
+  return <button className="fa-file" onClick={open} disabled={busy} title={value.name}>{busy ? 'Opening…' : '📎 View file'}</button>;
 }
 
 function problemsOf(q) {
@@ -258,6 +346,10 @@ function FormEditor({ initial, existingSlugs, onClose, onSaved }) {
       slug, title: f.title.trim(), description: f.description?.trim() || null, banner_url: f.banner_url || null,
       theme_color: f.theme_color, is_open: f.is_open, closed_message: f.closed_message?.trim() || null,
       success_message: f.success_message?.trim() || null, create_lead: true, updated_at: new Date().toISOString(),
+      details: {
+        class_code: f.details?.class_code?.trim() || '', program: f.details?.program || '', training_duration: f.details?.training_duration || '',
+        blocks: (f.details?.blocks || []).map((b) => ({ id: b.id, label: b.label.trim(), text: b.text.trim() })).filter((b) => b.label || b.text),
+      },
       questions: f.questions.map((q) => ({
         id: q.id, type: q.type, label: q.label.trim(), help: q.help?.trim() || '', required: q.type === 'section' ? false : Boolean(q.required),
         options: OPTION_TYPES.includes(q.type) ? q.options.map((o) => o.trim()) : [], lead_field: q.type === 'section' ? '' : (q.lead_field || ''),
@@ -287,8 +379,11 @@ function FormEditor({ initial, existingSlugs, onClose, onSaved }) {
           {f.banner_url && <div className="fe2-banner"><img src={f.banner_url} alt="" /><button onClick={() => set('banner_url', '')}>Remove banner</button></div>}
           <div className="fe2-card fe2-headcard">
             <input className="fe2-title" value={f.title} onChange={(e) => set('title', e.target.value)} placeholder="Form title" />
-            <textarea className="fe2-desc" rows={3} value={f.description || ''} onChange={(e) => set('description', e.target.value)} placeholder="Form description" />
+            <textarea className="fe2-desc" rows={2} value={f.description || ''} onChange={(e) => set('description', e.target.value)} placeholder="Short note under the title (optional)" />
           </div>
+
+          <DetailsEditor details={f.details || {}} title={f.title}
+            onChange={(details, title) => setF((x) => ({ ...x, details, ...(title !== undefined ? { title } : {}) }))} />
 
           {f.questions.map((q, i) => {
             const p = checked ? problems[i] : [];
@@ -454,7 +549,7 @@ function Responses({ form, onClose }) {
               {shown.map((r) => (
                 <tr key={r.id}>
                   <td className="fa-nowrap">{fmt(r.created_at)}{r.lead_id && <span className="fa-crm sm">CRM</span>}</td>
-                  {cols.map((c) => <td key={c.id}>{formatAnswer(r.answers[c.id]) || <span className="fa-muted">—</span>}</td>)}
+                  {cols.map((c) => <td key={c.id}>{isFileAnswer(r.answers[c.id]) ? <FileLink value={r.answers[c.id]} /> : formatAnswer(r.answers[c.id]) || <span className="fa-muted">—</span>}</td>)}
                   <td><button className="fa-del" onClick={() => remove(r)} aria-label="Delete response">×</button></td>
                 </tr>
               ))}

@@ -268,7 +268,16 @@ export default function LeadModal({ lead, onClose, onSave, onDelete, createMode 
                   <dl>
                     {(r.forms?.questions || []).filter((q) => q.type !== 'section').map((q) => {
                       const v = r.answers?.[q.id];
-                      return <div key={q.id}><dt>{q.label}</dt><dd>{Array.isArray(v) ? v.join(', ') : v || '—'}</dd></div>;
+                      return (
+                        <div key={q.id}><dt>{q.label}</dt><dd>
+                          {v && typeof v === 'object' && v.path ? (
+                            <button type="button" className="fa-file" onClick={async () => {
+                              const { data, error } = await supabase.storage.from('form-uploads').createSignedUrl(v.path, 600);
+                              if (error) alert('Could not open the file: ' + error.message); else window.open(data.signedUrl, '_blank', 'noopener');
+                            }}>📎 {v.name}</button>
+                          ) : Array.isArray(v) ? v.join(', ') : v || '—'}
+                        </dd></div>
+                      );
                     })}
                   </dl>
                 </details>

@@ -27,6 +27,11 @@ create table if not exists forms (
 alter table forms add column if not exists is_primary boolean not null default false;
 create unique index if not exists forms_one_primary on forms (is_primary) where is_primary;
 
+-- Training details shown at the top of a registration form:
+--   { class_code, program, training_duration, blocks: [{ id, label, text }] }
+-- program and training_duration also fill every lead created from the form
+alter table forms add column if not exists details jsonb not null default '{}';
+
 create table if not exists form_responses (
   id         uuid primary key default gen_random_uuid(),
   form_id    uuid not null references forms (id) on delete cascade,
@@ -60,7 +65,7 @@ create or replace function submit_form(p_slug text, p_answers jsonb) returns jso
 language plpgsql security definer set search_path = public as $$
 declare
   f forms; q jsonb; v jsonb; missing text[] := '{}'; clean jsonb := '{}'; v_lead_id text; existing leads;
-  v_name text; v_email text; v_phone text; v_duration text; v_programs text[] := '{}';
+  v_name text; v_email text; v_phone text; v_duration text; v_work text; v_programs text[] := '{}';
 begin
   select * into f from forms where slug = p_slug;
   if f.id is null then raise exception 'This form does not exist.'; end if;
@@ -81,6 +86,7 @@ begin
       when 'full_name' then v_name := v #>> '{}';
       when 'email' then v_email := v #>> '{}';
       when 'contact_number' then v_phone := v #>> '{}';
+      when 'current_work' then v_work := v #>> '{}';
       when 'training_duration' then v_duration := v #>> '{}';
       when 'program' then
         if jsonb_typeof(v) = 'array' then v_programs := array(select jsonb_array_elements_text(v));
@@ -96,7 +102,12 @@ begin
   v_name := nullif(trim(coalesce(v_name, '')), '');
   v_email := nullif(lower(trim(coalesce(v_email, ''))), '');
   v_phone := nullif(trim(coalesce(v_phone, '')), '');
-  v_duration := nullif(trim(coalesce(v_duration, '')), '');
+  v_work := nullif(trim(coalesce(v_work, '')), '');
+  -- The form's own training program and duration apply when the form does not ask for them
+  v_duration := coalesce(nullif(trim(coalesce(v_duration, '')), ''), nullif(trim(coalesce(f.details ->> 'training_duration', '')), ''));
+  if coalesce(array_length(v_programs, 1), 0) = 0 and nullif(trim(coalesce(f.details ->> 'program', '')), '') is not null then
+    v_programs := array[trim(f.details ->> 'program')];
+  end if;
 
   if v_name is not null or v_email is not null then
     if v_email is not null then
@@ -109,13 +120,14 @@ begin
       update leads
          set full_name      = coalesce(v_name, full_name),
              contact_number = coalesce(v_phone, contact_number),
+             current_work   = coalesce(v_work, current_work),
              programs       = array(select distinct p from unnest(coalesce(programs, '{}') || v_programs) p where p <> ''),
              training_duration = coalesce(v_duration, training_duration)
        where id = existing.id;
       v_lead_id := existing.id::text;
     else
-      insert into leads (full_name, email, contact_number, programs, training_duration, stage, source)
-      values (coalesce(v_name, v_email), v_email, v_phone, v_programs, v_duration, 'Applicants', 'exclusive_form')
+      insert into leads (full_name, email, contact_number, current_work, programs, training_duration, stage, source)
+      values (coalesce(v_name, v_email), v_email, v_phone, v_work, v_programs, v_duration, 'Applicants', 'exclusive_form')
       returning id::text into v_lead_id;
     end if;
   end if;
@@ -126,6 +138,24 @@ end $$;
 
 revoke all on function submit_form(text, jsonb) from public;
 grant execute on function submit_form(text, jsonb) to anon, authenticated;
+
+
+-- File uploads (proof of payment): private bucket, images or PDF up to 10 MB.
+-- Applicants can upload; only staff can open the files.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('form-uploads', 'form-uploads', false, 10485760,
+        array['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'application/pdf'])
+on conflict (id) do update set public = false, file_size_limit = excluded.file_size_limit, allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "applicants upload form files" on storage.objects;
+drop policy if exists "staff read form files" on storage.objects;
+drop policy if exists "admins delete form files" on storage.objects;
+create policy "applicants upload form files" on storage.objects for insert to anon, authenticated
+  with check (bucket_id = 'form-uploads');
+create policy "staff read form files" on storage.objects for select to authenticated
+  using (bucket_id = 'form-uploads' and is_staff());
+create policy "admins delete form files" on storage.objects for delete to authenticated
+  using (bucket_id = 'form-uploads' and is_admin());
 
 
 -- ─── 2. BATCH NUMBER IN VERIFICATION ───────────────────────────────────────
