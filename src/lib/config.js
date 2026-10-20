@@ -118,6 +118,6 @@ export const LEAD_SOURCES = [
   { id: 'flyers', label: 'Flyers' },
   { id: 'referral', label: 'Referral' },
   { id: 'landing_page', label: 'Landing Page' },
-  { id: 'online_form', label: 'Online Form' },
+  { id: 'exclusive_form', label: 'Exclusive Form' },
   { id: 'manual', label: 'Manual Entry' },
 ];

@@ -111,3 +111,9 @@
 }
 .fa-pills { display: flex; gap: 6px; flex-wrap: wrap; }
 .fa-pill.main { background: var(--navy); color: var(--gold-2); }
+.fe2-crm-list { display: flex; flex-direction: column; gap: 3px; margin-top: 12px; padding: 12px 14px; background: #eef4ff; border: 1px solid #d6e4fb; border-radius: 10px; font-size: 13px; color: #1e3a6e; }
+.fe2-crm-list small { color: #5b6f95; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fe2-crm-note { padding: 12px 14px; background: #eef4ff; border: 1px solid #d6e4fb; border-radius: 12px; }
+.fe2-crm-note b { display: block; font-size: 13.5px; color: #1d4ed8; }
+.fe2-crm-note small { display: block; font-size: 12px; color: #3b4f75; line-height: 1.55; margin-top: 3px; }
+.fa-head-actions { display: flex; gap: 8px; flex-wrap: wrap; }

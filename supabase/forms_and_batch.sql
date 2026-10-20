@@ -54,11 +54,12 @@ create policy "admins manage forms" on forms for all to authenticated using (is_
 create policy "staff read responses" on form_responses for select to authenticated using (is_staff());
 create policy "admins delete responses" on form_responses for delete to authenticated using (is_admin());
 
--- Validates and stores a response; optionally creates a CRM lead from mapped questions
+-- Validates and stores a response, then creates or updates the CRM lead (source: Exclusive Form).
+-- Same email + same training duration updates that lead; otherwise a new Applicant is created.
 create or replace function submit_form(p_slug text, p_answers jsonb) returns jsonb
 language plpgsql security definer set search_path = public as $$
 declare
-  f forms; q jsonb; v jsonb; missing text[] := '{}'; clean jsonb := '{}'; v_lead_id text;
+  f forms; q jsonb; v jsonb; missing text[] := '{}'; clean jsonb := '{}'; v_lead_id text; existing leads;
   v_name text; v_email text; v_phone text; v_duration text; v_programs text[] := '{}';
 begin
   select * into f from forms where slug = p_slug;
@@ -92,11 +93,31 @@ begin
     raise exception 'Please answer the required questions: %', array_to_string(missing, ', ');
   end if;
 
-  if f.create_lead and coalesce(trim(v_name), '') <> '' then
-    insert into leads (full_name, email, contact_number, programs, training_duration, stage, source)
-    values (trim(v_name), nullif(trim(coalesce(v_email, '')), ''), nullif(trim(coalesce(v_phone, '')), ''),
-            v_programs, nullif(trim(coalesce(v_duration, '')), ''), 'Applicants', 'online_form')
-    returning id::text into v_lead_id;
+  v_name := nullif(trim(coalesce(v_name, '')), '');
+  v_email := nullif(lower(trim(coalesce(v_email, ''))), '');
+  v_phone := nullif(trim(coalesce(v_phone, '')), '');
+  v_duration := nullif(trim(coalesce(v_duration, '')), '');
+
+  if v_name is not null or v_email is not null then
+    if v_email is not null then
+      select * into existing from leads
+       where lower(email) = v_email and coalesce(training_duration, '') = coalesce(v_duration, '')
+       order by created_at desc limit 1;
+    end if;
+
+    if existing.id is not null then
+      update leads
+         set full_name      = coalesce(v_name, full_name),
+             contact_number = coalesce(v_phone, contact_number),
+             programs       = array(select distinct p from unnest(coalesce(programs, '{}') || v_programs) p where p <> ''),
+             training_duration = coalesce(v_duration, training_duration)
+       where id = existing.id;
+      v_lead_id := existing.id::text;
+    else
+      insert into leads (full_name, email, contact_number, programs, training_duration, stage, source)
+      values (coalesce(v_name, v_email), v_email, v_phone, v_programs, v_duration, 'Applicants', 'exclusive_form')
+      returning id::text into v_lead_id;
+    end if;
   end if;
 
   insert into form_responses (form_id, answers, lead_id) values (f.id, clean, v_lead_id);

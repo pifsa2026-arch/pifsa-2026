@@ -1157,3 +1157,9 @@ a.portal-btn-ghost { text-decoration: none; display: inline-flex; align-items: c
   .auto-flow { gap: 4px; }
   .workspace-cards { grid-template-columns: 1fr; }
 }
+.lf-resp { border-top: 1px solid #e8edf4; padding: 10px 0 4px; }
+.lf-resp summary { cursor: pointer; font-size: 13px; font-weight: 700; color: var(--navy); }
+.lf-resp dl { display: grid; grid-template-columns: minmax(120px, 0.8fr) 1.2fr; gap: 6px 14px; margin: 10px 0 4px; font-size: 13px; }
+.lf-resp dl > div { display: contents; }
+.lf-resp dt { color: var(--muted); }
+.lf-resp dd { margin: 0; color: #1e2d40; font-weight: 600; overflow-wrap: anywhere; white-space: pre-wrap; }

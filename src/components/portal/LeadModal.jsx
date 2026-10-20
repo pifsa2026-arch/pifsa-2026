@@ -31,6 +31,7 @@ export default function LeadModal({ lead, onClose, onSave, onDelete, createMode 
   const [editingNote, setEditingNote] = useState(null);
 
   const [certs, setCerts] = useState([]);
+  const [formAnswers, setFormAnswers] = useState([]);
   const [comp, setComp] = useState({ program: '', certificate_no: '', batch: '', completed_on: '' });
   const [compError, setCompError] = useState('');
   const [compBusy, setCompBusy] = useState(false);
@@ -42,6 +43,8 @@ export default function LeadModal({ lead, onClose, onSave, onDelete, createMode 
       fetchPayments(lead.id).then(setPayments);
       fetchNotes(lead.id).then(setNotes);
       supabase.from('completers').select('*').eq('lead_id', String(lead.id)).then(({ data }) => setCerts(data || []));
+      supabase.from('form_responses').select('id, created_at, answers, forms(title, questions)').eq('lead_id', String(lead.id))
+        .order('created_at', { ascending: false }).then(({ data }) => setFormAnswers(data || []));
     }
   }, [canHistory, lead.id, fetchPayments, fetchNotes]);
 
@@ -252,6 +255,24 @@ export default function LeadModal({ lead, onClose, onSave, onDelete, createMode 
             <div className="pay-panel">
               <div className="pay-panel-head"><span>Payment Records</span></div>
               <p className="muted" style={{ fontSize: 12.5 }}>{createMode ? 'Save the lead first, then reopen it to record payments.' : 'Payment records require a live Supabase connection.'}</p>
+            </div>
+          )}
+
+          {/* Answers this person gave on Exclusive Forms */}
+          {formAnswers.length > 0 && (
+            <div className="pay-panel">
+              <div className="pay-panel-head"><span>Exclusive Form answers</span><span className="pay-tag pay-completer">{formAnswers.length} response{formAnswers.length > 1 ? 's' : ''}</span></div>
+              {formAnswers.map((r) => (
+                <details className="lf-resp" key={r.id} open={r === formAnswers[0]}>
+                  <summary>{r.forms?.title || 'Form'} · {fmtDateTime(r.created_at)}</summary>
+                  <dl>
+                    {(r.forms?.questions || []).filter((q) => q.type !== 'section').map((q) => {
+                      const v = r.answers?.[q.id];
+                      return <div key={q.id}><dt>{q.label}</dt><dd>{Array.isArray(v) ? v.join(', ') : v || '—'}</dd></div>;
+                    })}
+                  </dl>
+                </details>
+              ))}
             </div>
           )}
 

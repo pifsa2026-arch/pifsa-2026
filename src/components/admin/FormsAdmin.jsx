@@ -18,6 +18,7 @@ export default function FormsAdmin() {
   const [error, setError] = useState('');
   const [view, setView] = useState({ mode: 'list' }); // list | edit | responses
   const [copied, setCopied] = useState('');
+  const [importOpen, setImportOpen] = useState(false);
 
   const load = useCallback(async () => {
     if (!isSupabaseConfigured) { setLoading(false); return; }
@@ -72,9 +73,13 @@ export default function FormsAdmin() {
           <h2>Online Forms</h2>
           <p className="fa-sub">Share one permanent link, <code>{window.location.host}/apply</code>. It always opens the form marked <b>Main</b>. For a new training duration, duplicate the form, update it, then click <b>Set as main</b>. The link you already shared keeps working. Each form also has its own <code>/f/…</code> link. Forms are not linked from the website.</p>
         </div>
-        <button className="portal-btn sm" onClick={() => setView({ mode: 'edit', form: blankForm() })}>＋ New form</button>
+        <div className="fa-head-actions">
+          <button className="portal-btn-ghost" onClick={() => setImportOpen(true)}>Import Google Form</button>
+          <button className="portal-btn sm" onClick={() => setView({ mode: 'edit', form: blankForm() })}>＋ New form</button>
+        </div>
       </div>
       {error && <div className="notice">{error}</div>}
+      {importOpen && <ImportDialog onClose={() => setImportOpen(false)} onImported={(form) => { setImportOpen(false); setView({ mode: 'edit', form }); }} />}
       {loading ? <div className="panel-loading">Loading…</div> : forms.length === 0 ? (
         <div className="admin-empty">No forms yet. Create one to replace your Google Form. It starts with name, email, contact number, program and duration questions you can change.</div>
       ) : (
@@ -95,7 +100,7 @@ export default function FormsAdmin() {
               <div className="fa-stats">
                 <span><b>{counts[f.id] || 0}</b> responses</span>
                 <span><b>{f.questions.filter((q) => q.type !== 'section').length}</b> questions</span>
-                {f.create_lead && <span className="fa-crm">Adds CRM leads</span>}
+                <span className="fa-crm">Linked to CRM</span>
               </div>
               <div className="fa-meta">Updated {fmt(f.updated_at)}</div>
               <div className="fa-actions">
@@ -114,10 +119,88 @@ export default function FormsAdmin() {
   );
 }
 
+const CRM_LISTS = { program: PRESET_OPTIONS.programs, training_duration: PRESET_OPTIONS.durations };
+
+// Mapping a question to program or duration switches it to the CRM list so leads fill in exactly
+function leadPatch(q, field) {
+  if (!CRM_LISTS[field]) return { lead_field: field };
+  const allowed = field === 'program' ? OPTION_TYPES : ['dropdown', 'mc'];
+  return { lead_field: field, type: allowed.includes(q.type) ? q.type : 'dropdown', options: [...CRM_LISTS[field]] };
+}
+
+// Guesses which imported questions should fill CRM lead details
+const LEAD_GUESS = [
+  ['full_name', (q) => /\bname\b/i.test(q.label) && !/(company|school|agency|employer|office|org|first|last|middle|nick)/i.test(q.label) && ['short'].includes(q.type)],
+  ['email', (q) => q.type === 'email'],
+  ['contact_number', (q) => q.type === 'phone'],
+  ['program', (q) => /(program|course)/i.test(q.label) && OPTION_TYPES.includes(q.type)],
+  ['training_duration', (q) => /(duration|schedule|training date|batch date)/i.test(q.label) && OPTION_TYPES.includes(q.type)],
+];
+
+function toEditorForm(g) {
+  const used = new Set();
+  const questions = g.questions.map((q) => {
+    let next = { ...question(q.type), ...q, options: q.options || [] };
+    if (q.type !== 'section') {
+      const hit = LEAD_GUESS.find(([field, test]) => !used.has(field) && test(next));
+      if (hit) { used.add(hit[0]); next = { ...next, ...leadPatch(next, hit[0]) }; }
+    }
+    if (OPTION_TYPES.includes(next.type) && !next.options.length) next.options = ['Option 1'];
+    return next;
+  });
+  return { ...blankForm(), title: g.title || 'Imported form', description: g.description || '', slug: '', is_open: false, questions };
+}
+
+function ImportDialog({ onClose, onImported }) {
+  const [url, setUrl] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [result, setResult] = useState(null);
+
+  const run = async (e) => {
+    e.preventDefault();
+    setBusy(true); setError(''); setResult(null);
+    try {
+      const res = await fetch('/api/import-form?url=' + encodeURIComponent(url.trim()));
+      if (!(res.headers.get('content-type') || '').includes('json')) throw new Error('The importer only runs on the live site (pifsatraining.com). Try it there.');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Import failed.');
+      if (!data.questions.length) throw new Error('No questions were found in that form.');
+      setResult(data);
+    } catch (err) { setError(err.message); }
+    setBusy(false);
+  };
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head"><h2>Import a Google Form</h2><button className="modal-close" onClick={onClose}>×</button></div>
+        <form className="modal-body" onSubmit={run}>
+          <p className="fa-sub" style={{ marginTop: 0 }}>Paste the link people use to fill out your Google Form. The title, description, sections and questions (with their choices and required settings) are copied into a new form you can edit before saving.</p>
+          <input className="portal-field" placeholder="https://docs.google.com/forms/d/e/…/viewform  or  https://forms.gle/…" value={url} onChange={(e) => setUrl(e.target.value)} autoFocus />
+          {error && <div className="completer-error">{error}</div>}
+          {result && (
+            <div className="csv-ok">
+              Found <b>{result.title || 'your form'}</b> with {result.questions.filter((q) => q.type !== 'section').length} questions.
+              {result.skipped.length > 0 && <> Skipped (not supported): {result.skipped.join(', ')}.</>}
+            </div>
+          )}
+          <div className="modal-foot-right" style={{ marginTop: 6 }}>
+            <button type="button" className="portal-btn-ghost" onClick={onClose}>Cancel</button>
+            {result
+              ? <button type="button" className="portal-btn" onClick={() => onImported(toEditorForm(result))}>Open in the editor</button>
+              : <button className="portal-btn" disabled={busy || !url.trim()}>{busy ? 'Reading the form…' : 'Import'}</button>}
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 function problemsOf(q) {
   const p = [];
   if (!q.label.trim()) p.push(q.type === 'section' ? 'Give the section a title.' : 'Write the question.');
-  if (OPTION_TYPES.includes(q.type)) {
+  if (OPTION_TYPES.includes(q.type) && !CRM_LISTS[q.lead_field]) {
     const opts = q.options.map((o) => o.trim());
     if (!opts.length || opts.some((o) => !o)) p.push('Fill in or remove the empty options.');
     if (new Set(opts).size !== opts.length) p.push('Two options are the same.');
@@ -164,12 +247,13 @@ function FormEditor({ initial, existingSlugs, onClose, onSaved }) {
     if (slugBad) { setError('Fix the form link: ' + slugBad); return; }
     if (!f.questions.some((q) => q.type !== 'section')) { setError('Add at least one question.'); return; }
     if (badCount) { setError(`${badCount} question${badCount > 1 ? 's need' : ' needs'} fixing (highlighted below).`); return; }
-    if (f.create_lead && !f.questions.some((q) => q.lead_field === 'full_name')) { setError('To create CRM leads, map one question to "Full name" (in the question settings).'); return; }
+    const missingMap = ['full_name', 'email'].filter((k) => !f.questions.some((q) => q.lead_field === k));
+    if (missingMap.length) { setError('Every response goes to the CRM, so set one question to ' + missingMap.map((k) => '"CRM lead: ' + LEAD_FIELDS[k] + '"').join(' and ') + ' (bottom-left of the question).'); return; }
     setSaving(true); setError('');
     const row = {
       slug, title: f.title.trim(), description: f.description?.trim() || null, banner_url: f.banner_url || null,
       theme_color: f.theme_color, is_open: f.is_open, closed_message: f.closed_message?.trim() || null,
-      success_message: f.success_message?.trim() || null, create_lead: f.create_lead, updated_at: new Date().toISOString(),
+      success_message: f.success_message?.trim() || null, create_lead: true, updated_at: new Date().toISOString(),
       questions: f.questions.map((q) => ({
         id: q.id, type: q.type, label: q.label.trim(), help: q.help?.trim() || '', required: q.type === 'section' ? false : Boolean(q.required),
         options: OPTION_TYPES.includes(q.type) ? q.options.map((o) => o.trim()) : [], lead_field: q.type === 'section' ? '' : (q.lead_field || ''),
@@ -217,7 +301,14 @@ function FormEditor({ initial, existingSlugs, onClose, onSaved }) {
                 </div>
                 <input className="fe2-help" value={q.help || ''} onChange={(e) => setQ(q.id, { help: e.target.value })} placeholder={q.type === 'section' ? 'Description (optional)' : 'Help text (optional)'} />
 
-                {OPTION_TYPES.includes(q.type) && (
+                {CRM_LISTS[q.lead_field] && OPTION_TYPES.includes(q.type) && (
+                  <div className="fe2-crm-list">
+                    <b>Choices come from the CRM</b>
+                    <span>{CRM_LISTS[q.lead_field].length} {q.lead_field === 'program' ? 'training programs' : 'training durations'}, always up to date. {q.lead_field === 'program' ? 'The chosen program appears on the lead.' : 'The chosen duration appears on the lead.'}</span>
+                    <small>{CRM_LISTS[q.lead_field].slice(0, 3).join(' · ')}{CRM_LISTS[q.lead_field].length > 3 ? ' · …' : ''}</small>
+                  </div>
+                )}
+                {!CRM_LISTS[q.lead_field] && OPTION_TYPES.includes(q.type) && (
                   <div className="fe2-opts">
                     {q.options.map((o, oi) => (
                       <div className="fe2-opt" key={oi}>
@@ -240,7 +331,7 @@ function FormEditor({ initial, existingSlugs, onClose, onSaved }) {
 
                 <div className="fe2-q-foot">
                   {q.type !== 'section' && (
-                    <select className="portal-field sm fe2-lead" value={q.lead_field || ''} onChange={(e) => setQ(q.id, { lead_field: e.target.value })} title="When CRM leads are on, this answer fills the lead field">
+                    <select className="portal-field sm fe2-lead" value={q.lead_field || ''} onChange={(e) => setQ(q.id, leadPatch(q, e.target.value))} title="Which lead detail this answer fills in the CRM">
                       <option value="">Not sent to the CRM</option>
                       {Object.entries(LEAD_FIELDS).map(([k, v]) => <option key={k} value={k} disabled={usedLead(k, q.id)}>CRM lead: {v}</option>)}
                     </select>
@@ -276,10 +367,10 @@ function FormEditor({ initial, existingSlugs, onClose, onSaved }) {
               <span><b>Accepting responses</b><small>Turn off when the training duration is full or over.</small></span>
               <span className="switch"><input type="checkbox" checked={f.is_open} onChange={(e) => set('is_open', e.target.checked)} /><span className="switch-slider" /></span>
             </label>
-            <label className="fe2-switch-row">
-              <span><b>Create a CRM lead</b><small>Each response becomes an Applicant in the CRM, using the questions mapped to CRM fields.</small></span>
-              <span className="switch"><input type="checkbox" checked={f.create_lead} onChange={(e) => set('create_lead', e.target.checked)} /><span className="switch-slider" /></span>
-            </label>
+            <div className="fe2-crm-note">
+              <b>Connected to the CRM</b>
+              <small>Every response creates an Applicant with source <em>Exclusive Form</em>. If the same email applies again for the same training duration, that lead is updated instead.</small>
+            </div>
             <label className="fe2-field">Form link
               <div className="fe2-slug"><span>/f/</span><input value={f.slug} placeholder={slugify(f.title) || 'application-form'} onChange={(e) => set('slug', e.target.value.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/-{2,}/g, '-').slice(0, 61))} /></div>
               {slugBad && <small className="fe2-bad">{slugBad}</small>}

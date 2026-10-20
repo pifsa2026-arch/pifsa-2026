@@ -2,12 +2,30 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase, isSupabaseConfigured } from '../lib/supabase.js';
 import { isEmpty } from '../lib/forms.js';
+import { TRAINING_PROGRAMS, TRAINING_DURATIONS, programsForDuration, durationNote } from '../lib/config.js';
 import '../styles/form-page.css';
 
 const draftKey = (slug) => `pifsa_form_${slug}`;
 const readDraft = (slug) => { try { return JSON.parse(localStorage.getItem(draftKey(slug))) || {}; } catch { return {}; } };
 const saveDraft = (slug, v) => { try { localStorage.setItem(draftKey(slug), JSON.stringify(v)); } catch { /* storage blocked */ } };
 const clearDraft = (slug) => { try { localStorage.removeItem(draftKey(slug)); } catch { /* ignore */ } };
+
+// Program and duration questions use the CRM lists so leads fill in exactly; each narrows the other
+function optionsFor(q, answers, questions) {
+  if (q.lead_field === 'program') {
+    const dq = questions.find((x) => x.lead_field === 'training_duration');
+    const d = dq ? answers[dq.id] : '';
+    return typeof d === 'string' && d ? programsForDuration(d) : TRAINING_PROGRAMS;
+  }
+  if (q.lead_field === 'training_duration') {
+    const pq = questions.find((x) => x.lead_field === 'program');
+    const p = pq ? answers[pq.id] : null;
+    const picked = Array.isArray(p) ? p : p ? [p] : [];
+    return TRAINING_DURATIONS.filter((d) => picked.every((x) => programsForDuration(d).includes(x)));
+  }
+  return q.options;
+}
+const optionLabel = (q, o) => (q.lead_field === 'training_duration' ? o + durationNote(o) : o);
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const PHONE = /^[+()\d\s-]{7,20}$/;
@@ -129,6 +147,7 @@ export default function FormPage() {
           );
         }
         const v = answers[q.id];
+        const opts = optionsFor(q, answers, form.questions);
         const err = errors[q.id];
         const inputId = `fi-${q.id}`;
         return (
@@ -147,20 +166,20 @@ export default function FormPage() {
             {q.type === 'dropdown' && (
               <select id={inputId} className="gf-select" value={v || ''} onChange={(e) => set(q, e.target.value)}>
                 <option value="">Choose</option>
-                {q.options.map((o) => <option key={o} value={o}>{o}</option>)}
+                {opts.map((o) => <option key={o} value={o}>{optionLabel(q, o)}</option>)}
               </select>
             )}
             {q.type === 'mc' && (
               <div className="gf-options" role="radiogroup" aria-label={q.label}>
-                {q.options.map((o) => (
-                  <label key={o} className="gf-option"><input type="radio" name={q.id} checked={v === o} onChange={() => set(q, o)} /><span>{o}</span></label>
+                {opts.map((o) => (
+                  <label key={o} className="gf-option"><input type="radio" name={q.id} checked={v === o} onChange={() => set(q, o)} /><span>{optionLabel(q, o)}</span></label>
                 ))}
                 {v && !q.required && <button type="button" className="gf-clear" onClick={() => set(q, '')}>Clear selection</button>}
               </div>
             )}
             {q.type === 'checkbox' && (
               <div className="gf-options">
-                {q.options.map((o) => (
+                {opts.map((o) => (
                   <label key={o} className="gf-option"><input type="checkbox" checked={Array.isArray(v) && v.includes(o)} onChange={() => toggle(q, o)} /><span>{o}</span></label>
                 ))}
               </div>
