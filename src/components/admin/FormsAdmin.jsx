@@ -3,9 +3,10 @@ import { supabase, isSupabaseConfigured } from '../../lib/supabase.js';
 import { newId } from '../../lib/examParser.js';
 import {
   QTYPES, OPTION_TYPES, LEAD_FIELDS, THEME_COLORS, PRESET_OPTIONS,
-  question, slugify, blankForm, formatAnswer, resizeImage, isFileAnswer, programCode, detailBlock,
+  question, slugify, blankForm, formatAnswer, isFileAnswer, programCode, detailBlock,
 } from '../../lib/forms.js';
 import { durationsForProgram, durationNote } from '../../lib/config.js';
+import { uploadSiteImage } from '../../lib/siteImages.js';
 import '../../styles/forms-admin.css';
 
 const fmt = (iso) => (iso ? new Date(iso).toLocaleString('en-PH', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '—');
@@ -330,7 +331,7 @@ function FormEditor({ initial, existingSlugs, onClose, onSaved }) {
     const file = e.target.files[0];
     e.target.value = '';
     if (!file) return;
-    try { set('banner_url', await resizeImage(file)); } catch { setError('That image could not be read. Try a JPG or PNG.'); }
+    try { set('banner_url', await uploadSiteImage(file, 'forms')); } catch (err) { setError('Could not upload the banner: ' + err.message); }
   };
 
   const save = async () => {

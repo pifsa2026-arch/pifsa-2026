@@ -89,24 +89,3 @@ export const isEmpty = (v) => v === undefined || v === null || (typeof v === 'st
 export const isFileAnswer = (v) => Boolean(v && typeof v === 'object' && !Array.isArray(v) && v.path);
 export const formatAnswer = (v) => (Array.isArray(v) ? v.join(', ') : isFileAnswer(v) ? v.name : v ?? '');
 
-// Shrinks an uploaded banner so the form stays fast to load
-export function resizeImage(file, maxW = 1600) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = reject;
-    reader.onload = () => {
-      const img = new Image();
-      img.onerror = reject;
-      img.onload = () => {
-        const scale = Math.min(1, maxW / img.width);
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.round(img.width * scale);
-        canvas.height = Math.round(img.height * scale);
-        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL('image/jpeg', 0.85));
-      };
-      img.src = reader.result;
-    };
-    reader.readAsDataURL(file);
-  });
-}

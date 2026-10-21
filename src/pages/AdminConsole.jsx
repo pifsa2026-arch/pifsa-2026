@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/AuthContext.jsx';
 import { useIsAdmin } from '../lib/useIsAdmin.js';
@@ -6,6 +6,7 @@ import { EventsProvider, useEvents } from '../lib/EventsContext.jsx';
 import '../styles/portal.css';
 import '../styles/admin.css';
 import FormsAdmin from '../components/admin/FormsAdmin.jsx';
+import { uploadSiteImage, isDataUrl } from '../lib/siteImages.js';
 
 export default function AdminConsole() {
   return (
@@ -21,6 +22,27 @@ function AdminInner() {
   const { isAdmin, checked } = useIsAdmin();
   const { events, loading, connected, addEvent, updateEvent, deleteEvent } = useEvents();
   const [editing, setEditing] = useState(null);
+  const [moving, setMoving] = useState('');
+  const movedRef = useRef(false);
+  useEffect(() => {
+    if (!isAdmin || !connected || loading || movedRef.current) return;
+    const old = events.filter((e) => isDataUrl(e.details?.image_url));
+    if (!old.length) return;
+    movedRef.current = true;
+    (async () => {
+      for (let i = 0; i < old.length; i++) {
+        setMoving(`Optimizing event flyers ${i + 1} of ${old.length}…`);
+        try {
+          const url = await uploadSiteImage(old[i].details.image_url, 'events');
+          await updateEvent(old[i].id, { details: { ...old[i].details, image_url: url } });
+        } catch (err) {
+          setMoving('Could not optimize the event flyers: ' + err.message + '. Make sure supabase/site_images.sql has been run.');
+          return;
+        }
+      }
+      setMoving('');
+    })();
+  }, [isAdmin, connected, loading, events, updateEvent]);
   const [section, setSection] = useState(() => (new URLSearchParams(window.location.search).get('tab') === 'forms' ? 'forms' : 'events'));
 
   if (checked && !isAdmin) {
@@ -71,6 +93,7 @@ function AdminInner() {
           <button className={section === 'forms' ? 'on' : ''} onClick={() => setSection('forms')}>Online Forms</button>
         </nav>
         {section === 'forms' ? <FormsAdmin /> : (<>
+        {moving && <div className="notice">{moving}</div>}
         {!connected && <div className="notice">Not connected to Supabase, or the <code>events</code> table is missing. Run the schema SQL, then reload. Changes here won't persist until connected.</div>}
 
         <div className="admin-intro">
@@ -144,12 +167,18 @@ function EventEditor({ ev, onCancel, onSave }) {
   const isFeatured = form.kind === 'featured';
   const fileRef = useRef(null);
 
-  const handleFileChange = (e) => {
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+
+  // Flyers go to storage (compressed) and only the link is saved on the event
+  const handleFileChange = async (e) => {
     const file = e.target.files[0];
+    e.target.value = '';
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => setD('image_url', ev.target.result);
-    reader.readAsDataURL(file);
+    setUploading(true); setUploadError('');
+    try { setD('image_url', await uploadSiteImage(file, 'events')); }
+    catch (err) { setUploadError('Could not upload the photo: ' + err.message); }
+    setUploading(false);
   };
 
   return (
@@ -172,8 +201,10 @@ function EventEditor({ ev, onCancel, onSave }) {
               {/* Event banner image */}
               <div className="field-row">
                 <label>Event Banner / Flyer</label>
-                <div className="img-upload-area" onClick={() => fileRef.current?.click()}>
-                  {form.details.image_url ? (
+                <div className="img-upload-area" onClick={() => !uploading && fileRef.current?.click()}>
+                  {uploading ? (
+                    <div className="img-upload-placeholder"><span>Uploading photo…</span></div>
+                  ) : form.details.image_url ? (
                     <img src={form.details.image_url} alt="banner preview" className="img-upload-preview" />
                   ) : (
                     <div className="img-upload-placeholder">
@@ -184,7 +215,8 @@ function EventEditor({ ev, onCancel, onSave }) {
                   )}
                   <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileChange} />
                 </div>
-                {form.details.image_url && (
+                {uploadError && <div className="notice">{uploadError}</div>}
+                {form.details.image_url && !uploading && (
                   <button className="img-remove-btn" onClick={() => setD('image_url', '')}>✕ Remove photo</button>
                 )}
               </div>
@@ -227,7 +259,7 @@ function EventEditor({ ev, onCancel, onSave }) {
         <div className="modal-foot">
           <div className="modal-foot-right">
             <button className="portal-btn-ghost" onClick={onCancel}>Cancel</button>
-            <button className="portal-btn" onClick={() => onSave(form)} disabled={isFeatured ? !form.title.trim() : !form.date_range?.trim()}>Save</button>
+            <button className="portal-btn" onClick={() => onSave(form)} disabled={uploading || (isFeatured ? !form.title.trim() : !form.date_range?.trim())}>Save</button>
           </div>
         </div>
       </div>

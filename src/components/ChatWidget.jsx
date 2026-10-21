@@ -32,11 +32,11 @@ export default function ChatWidget() {
     }
   }, [session]);
 
-  // Poll quickly while open, slowly while closed (to show a badge when staff reply)
+  // Poll quickly while open, slowly while closed (to show a badge when staff reply), and not at all in a hidden tab
   useEffect(() => {
     if (!session?.token || !isSupabaseConfigured) return;
     fetchNew();
-    const t = setInterval(fetchNew, open ? 4000 : 20000);
+    const t = setInterval(() => { if (!document.hidden) fetchNew(); }, open ? 4000 : 60000);
     return () => clearInterval(t);
   }, [session, open, fetchNew]);
 
