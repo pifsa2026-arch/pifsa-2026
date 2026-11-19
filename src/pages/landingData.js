@@ -100,6 +100,10 @@ export const PROCESS_STEPS = [
 ];
 
 export const GALLERY = [
+  { src: '/images/gallery-11.jpg', cap: 'Moot Court Presentation & Closing Ceremony — Forensic Accounting and Investigation' },
+  { src: '/images/gallery-12.jpg', cap: 'Moot Court Presentation & Closing Ceremony — Forensic Psychology Batch 2026-11' },
+  { src: '/images/gallery-14.jpg', cap: 'Seminar-Workshop on Cognitive Interviewing Techniques with PNP personnel' },
+  { src: '/images/gallery-13.jpg', cap: 'Training seminar with PNP personnel and resource speakers' },
   { src: '/images/gallery-1.jpg',  cap: 'Training seminar with participants and faculty' },
   { src: '/images/gallery-2.jpg',  cap: 'Moot Court Presentation & Joint Closing Ceremony — Forensic Psychology' },
   { src: '/images/gallery-3.jpg',  cap: 'Certificate of Participation awarding ceremony' },
